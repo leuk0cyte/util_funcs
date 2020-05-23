@@ -371,4 +371,4 @@ def ReadHierarchicalVerilogToGraph(modulepath, topmodule_name):
     com_lib.append((len(module_dict),topmodule_name))
     np.savetxt(savepath+topmodule_name+'_Readme.txt',com_lib,"%s",delimiter="    ")
 
-    return IO_dict
+    return module_dict
