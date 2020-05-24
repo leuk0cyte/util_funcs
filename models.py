@@ -1,3 +1,4 @@
+##general
 import random
 import os
 import matplotlib.pyplot as plt
@@ -5,20 +6,23 @@ import networkx as nx
 import csv
 import numpy as np
 
+##dgl
 import dgl
 import dgl.function as fn
+
+##pytorch
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
-import torch
+
+##pyg 
 from torch_geometric.data import InMemoryDataset
 from torch_geometric.nn import GCNConv,GATConv
-import dgl.function as fn
-import torch
-import torch.nn as nn
 
+##customized funcs
+from util_funcs import graph_utils
 
 def collate(samples):
     # The input `samples` is a list of pairs
@@ -103,13 +107,122 @@ class pygGATModel(nn.Module):
     def __init__(self,in_dim, hidden_dim, n_classes):
         super(pygGATModel, self).__init__()
 #         self.lin = Sequential(Linear(10, 10))
-        self.conv1 = GATConv(in_dim, hidden_dim)
-        self.conv2 = GATConv(hidden_dim, hidden_dim)
+        self.GATConv1 = GATConv(in_dim, hidden_dim)
+        self.GATConv2 = GATConv(hidden_dim, hidden_dim)
         self.classify = nn.Linear(hidden_dim, n_classes)
 
     def forward(self, x, edge_index):
-        x = F.relu(self.conv1(x, edge_index))
+        x = F.relu(self.GATConv1(x, edge_index))
 #         x = F.dropout(x, training=self.training)
-        x = F.relu(self.conv2(x, edge_index))
+        x = F.relu(self.GATConv2(x, edge_index))
         x = torch.mean(x, 0, True)
         return self.classify(x)
+
+def train_pygmodel(model,dataset,labels,initial_lr=0.001,training_epoch=500,device=None):
+    loss_func = nn.CrossEntropyLoss().to(device)
+    optimizer = optim.Adam(model.parameters(), lr = initial_lr)
+    if device is None:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    model.to(device)
+    epoch_losses = []
+    for epoch in range(training_epoch):
+        model.train()
+        epoch_loss = 0
+        for iter, bg in enumerate(dataset):
+    #         prediction=torch.zeros(1,4,dtype=torch.float64).cuda()
+            edge_list = graph_utils.getEdgeList(bg)
+            
+            edges = torch.LongTensor(edge_list.transpose()).to(device)
+    #         print(type(edge_list))
+    #         edge_list = np.array(edge_list)
+            x = bg.in_degrees().view(-1, 1).float().to(device)
+            prediction = model(x,edges)
+            label = torch.LongTensor(labels[iter]).to(device)
+            
+            loss = loss_func(prediction, label)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            epoch_loss += loss.detach().item()
+        epoch_loss /= (iter + 1)
+    #     print('Epoch {}, loss {:.4f}'.format(epoch, epoch_loss))
+        epoch_losses.append(epoch_loss)
+    return model,epoch_losses,optimizer
+def train_dglmodel(model,dataset,labels,initial_lr=0.001,training_epoch=500,device=None):
+    loss_func = nn.CrossEntropyLoss().to(device)
+    optimizer = optim.Adam(model.parameters(), lr = initial_lr)
+    if device is None:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    model.to(device)
+    epoch_losses = []
+    for epoch in range(training_epoch):
+        model.train()
+        epoch_loss = 0
+        for iter, bg in enumerate(dataset):
+    #         prediction=torch.zeros(1,4,dtype=torch.float64).cuda()
+            edge_list = graph_utils.getEdgeList(bg)
+            
+            edges = torch.LongTensor(edge_list.transpose()).to(device)
+    #         print(type(edge_list))
+    #         edge_list = np.array(edge_list)
+            x = bg.in_degrees().view(-1, 1).float().to(device)
+            prediction = model(x,edges)
+            label = torch.LongTensor(labels[iter]).to(device)
+            
+            loss = loss_func(prediction, label)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            epoch_loss += loss.detach().item()
+        epoch_loss /= (iter + 1)
+    #     print('Epoch {}, loss {:.4f}'.format(epoch, epoch_loss))
+        epoch_losses.append(epoch_loss)
+    return model,epoch_losses,optimizer
+
+def save_checkpoint(filename,model, optimizer, args, num_epochs=-1, isbest=False, cg_dict=None):
+    """Save pytorch model checkpoint.
+    
+    Args:
+        - model         : The PyTorch model to save.
+        - optimizer     : The optimizer used to train the model.
+        - args          : A dict of meta-data about the model.
+        - num_epochs    : Number of training epochs.
+        - isbest        : True if the model has the highest accuracy so far.
+        - cg_dict       : A dictionary of the sampled computation graphs.
+    """
+    torch.save(
+        {
+            "epoch": num_epochs,
+            "optimizer": optimizer,
+            "model_state": model.state_dict(),
+            "optimizer_state": optimizer.state_dict(),
+            "cg": cg_dict,
+        },
+        filename,
+    )
+
+
+def load_ckpt(filename, isbest=False):
+    '''Load a pre-trained pytorch model from checkpoint.
+    '''
+    print("loading model")
+    # filename = create_filename(args.ckptdir, args, isbest)
+    print(filename)
+    if os.path.isfile(filename):
+        print("=> loading checkpoint '{}'".format(filename))
+        ckpt = torch.load(filename)
+    else:
+        print("Checkpoint does not exist!")
+        print("Checked path -- {}".format(filename))
+        print("Make sure you have provided the correct path!")
+        print("You may have forgotten to train a model for this dataset.")
+        print()
+        print("To train one of the paper's models, run the following")
+        print(">> python train.py --dataset=DATASET_NAME")
+        print()
+        raise Exception("File not found.")
+
+    # model.load_state_dict(ckpt['model_state_dict'])
+    return ckpt
