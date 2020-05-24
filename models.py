@@ -78,9 +78,9 @@ class PYGNet(torch.nn.Module):
         x = torch.mean(x, 0, True)
         return self.classify(x)
     
-class dglmodel(nn.Module):
+class dglGCNModel(nn.Module):
     def __init__(self, in_dim, hidden_dim, n_classes):
-        super(dglmodel, self).__init__()
+        super(dglGCNModel, self).__init__()
 
         self.layers = nn.ModuleList([
             GCN(in_dim, hidden_dim, F.relu),
@@ -97,3 +97,19 @@ class dglmodel(nn.Module):
         hg = dgl.mean_nodes(g, 'h')
         return self.classify(hg)
 
+#classGATConv(in_channels, out_channels, heads=1, concat=True, negative_slope=0.2, 
+# dropout=0, bias=True, **kwargs)
+class pygGATModel(nn.Module):
+    def __init__(self,in_dim, hidden_dim, n_classes):
+        super(pygGATModel, self).__init__()
+#         self.lin = Sequential(Linear(10, 10))
+        self.conv1 = GATConv(in_dim, hidden_dim)
+        self.conv2 = GATConv(hidden_dim, hidden_dim)
+        self.classify = nn.Linear(hidden_dim, n_classes)
+
+    def forward(self, x, edge_index):
+        x = F.relu(self.conv1(x, edge_index))
+#         x = F.dropout(x, training=self.training)
+        x = F.relu(self.conv2(x, edge_index))
+        x = torch.mean(x, 0, True)
+        return self.classify(x)
