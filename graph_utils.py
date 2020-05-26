@@ -62,7 +62,7 @@ def VisualizeGraph(graph=None,node_labels=None,mode='dgl',ax=None):
         if cmap is not None:
             cm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin = vmin, vmax=vmax))
             cm._A = []
-            plt.colorbar(cm)
+            plt.colorbar(cm,ax=ax)
 
 
 

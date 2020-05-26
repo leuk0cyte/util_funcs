@@ -38,7 +38,7 @@ use_cuda = torch.cuda.is_available()
 FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
 Tensor = FloatTensor
-
+EPSILON = 1e-20
 class Explainer:
     def __init__(
         self,
@@ -47,12 +47,10 @@ class Explainer:
         feat,
         label,
         pred,
-        train_idx,
-        args,
         writer=None,
         print_training=True,
         graph_mode=True,
-        graph_idx=False,
+        epochs=500,
     ):
         self.model = model
         self.model.eval()
@@ -60,22 +58,18 @@ class Explainer:
         self.feat = feat
         self.label = label
         self.pred = pred
-        self.train_idx = train_idx
-        self.n_hops = args.num_gc_layers
+        self.n_hops = 2
         self.graph_mode = graph_mode
-        self.graph_idx = graph_idx
-        self.neighborhoods = None if self.graph_mode else graph_utils.neighborhoods(adj=self.adj, n_hops=self.n_hops, use_cuda=use_cuda)
-        self.args = args
+        self.neighborhoods = None
         self.writer = writer
         self.print_training = print_training
-        self.epochs = args.num_epochs
+        self.epochs = epochs
     
     # Main method
     def explain(
-        self, node_idx, graph_idx=0, graph_mode=True, unconstrained=False, model="exp"
+        self, node_idx, graph_idx=0, graph_mode=True, unconstrained=False, model="exp",save_dir='Masks'
     ):
-        """Explain a single node prediction
-        """
+
         # index of the query node in the new adj
         if graph_mode:
             node_idx_new = node_idx
@@ -100,7 +94,7 @@ class Explainer:
         label = torch.tensor(sub_label, dtype=torch.long)
 
         if self.graph_mode:
-            pred_label = np.argmax(self.pred[0][graph_idx], axis=0)
+            pred_label = np.argmax(self.pred[graph_idx], axis=0)
             print("Graph predicted label: ", pred_label)
         else:
             pred_label = np.argmax(self.pred[graph_idx][neighbors], axis=1)
@@ -112,10 +106,9 @@ class Explainer:
             model=self.model,
             label=label,
             writer=self.writer,
-            graph_idx=self.graph_idx,
+            graph_idx=graph_idx,
             graph_mode=self.graph_mode,
         )
-#         if self.args.gpu:
         explainer = explainer.cuda()
 
         self.model.eval()
@@ -131,7 +124,7 @@ class Explainer:
             loss.backward()
 
             explainer.optimizer.step()
-            print(explainer.mask.grad)
+
             mask_density = explainer.mask_density()
             if self.print_training:
                 print(
@@ -161,101 +154,15 @@ class Explainer:
                     explainer.masked_adj[0].cpu().detach().numpy() * sub_adj.squeeze()
                 )
 
+        fname = save_dir+'/'+'masked_adj_'+str(graph_idx)+'.npy'
 
-        fname = 'masked_adj_'+str(graph_idx)+'.npy'
-#         with open(os.path.join(self.args.logdir, fname), 'wb') as outfile:
         np.save(fname, np.asarray(masked_adj.copy()))
         print("Saved adjacency matrix to ", fname)
         return masked_adj
 
 
 
-    def log_representer(self, rep_val, sim_val, alpha, graph_idx=0):
-        """ visualize output of representer instances. """
-        rep_val = rep_val.cpu().detach().numpy()
-        sim_val = sim_val.cpu().detach().numpy()
-        alpha = alpha.cpu().detach().numpy()
-        sorted_rep = sorted(range(len(rep_val)), key=lambda k: rep_val[k])
-        print(sorted_rep)
-        topk = 5
-        most_neg_idx = [sorted_rep[i] for i in range(topk)]
-        most_pos_idx = [sorted_rep[-i - 1] for i in range(topk)]
-        rep_idx = [most_pos_idx, most_neg_idx]
-
-        if self.graph_mode:
-            pred = np.argmax(self.pred[0][graph_idx], axis=0)
-        else:
-            pred = np.argmax(self.pred[graph_idx][self.train_idx], axis=1)
-        print(metrics.confusion_matrix(self.label[graph_idx][self.train_idx], pred))
-        plt.switch_backend("agg")
-        fig = plt.figure(figsize=(5, 3), dpi=600)
-        for i in range(2):
-            for j in range(topk):
-                idx = self.train_idx[rep_idx[i][j]]
-                print(
-                    "node idx: ",
-                    idx,
-                    "; node label: ",
-                    self.label[graph_idx][idx],
-                    "; pred: ",
-                    pred,
-                )
-
-                idx_new, sub_adj, sub_feat, sub_label, neighbors = self.extract_neighborhood(
-                    idx, graph_idx
-                )
-                G = nx.from_numpy_matrix(sub_adj)
-                node_colors = [1 for i in range(G.number_of_nodes())]
-                node_colors[idx_new] = 0
-                # node_color='#336699',
-
-                ax = plt.subplot(2, topk, i * topk + j + 1)
-                nx.draw(
-                    G,
-                    pos=nx.spring_layout(G),
-                    with_labels=True,
-                    font_size=4,
-                    node_color=node_colors,
-                    cmap=plt.get_cmap("Set1"),
-                    vmin=0,
-                    vmax=8,
-                    edge_vmin=0.0,
-                    edge_vmax=1.0,
-                    width=0.5,
-                    node_size=25,
-                    alpha=0.7,
-                )
-                ax.xaxis.set_visible(False)
-        fig.canvas.draw()
-        self.writer.add_image(
-            "local/representer_neigh", tensorboardX.utils.figure_to_image(fig), 0
-        )
-
-    def representer(self):
-        """
-        experiment using representer theorem for finding supporting instances.
-        https://papers.nips.cc/paper/8141-representer-point-selection-for-explaining-deep-neural-networks.pdf
-        """
-        self.model.train()
-        self.model.zero_grad()
-        adj = torch.tensor(self.adj, dtype=torch.float)
-        x = torch.tensor(self.feat, requires_grad=True, dtype=torch.float)
-        label = torch.tensor(self.label, dtype=torch.long)
-#         if self.args.gpu:
-        adj, x, label = adj.cuda(), x.cuda(), label.cuda()
-
-        preds, _ = self.model(x, adj)
-        preds.retain_grad()
-        self.embedding = self.model.embedding_tensor
-        loss = self.model.loss(preds, label)
-        loss.backward()
-        self.preds_grad = preds.grad
-        pred_idx = np.expand_dims(np.argmax(self.pred, axis=2), axis=2)
-        pred_idx = torch.LongTensor(pred_idx)
-#         if self.args.gpu:
-        pred_idx = pred_idx.cuda()
-        self.alpha = self.preds_grad
-
+   
 
     # Utilities
     def extract_neighborhood(self, node_idx, graph_idx=0):
@@ -268,84 +175,6 @@ class Explainer:
         sub_feat = self.feat[graph_idx, neighbors]
         sub_label = self.label[graph_idx][neighbors]
         return node_idx_new, sub_adj, sub_feat, sub_label, neighbors
-
-    def align(
-        self, ref_feat, ref_adj, ref_node_idx, curr_feat, curr_adj, curr_node_idx, args
-    ):
-        """ Tries to find an alignment between two graphs. 
-        """
-        ref_adj = torch.FloatTensor(ref_adj)
-        curr_adj = torch.FloatTensor(curr_adj)
-
-        ref_feat = torch.FloatTensor(ref_feat)
-        curr_feat = torch.FloatTensor(curr_feat)
-
-        P = nn.Parameter(torch.FloatTensor(ref_adj.shape[0], curr_adj.shape[0]))
-        with torch.no_grad():
-            nn.init.constant_(P, 1.0 / ref_adj.shape[0])
-            P[ref_node_idx, :] = 0.0
-            P[:, curr_node_idx] = 0.0
-            P[ref_node_idx, curr_node_idx] = 1.0
-        opt = torch.optim.Adam([P], lr=0.01, betas=(0.5, 0.999))
-        for i in range(args.align_steps):
-            opt.zero_grad()
-            feat_loss = torch.norm(P @ curr_feat - ref_feat)
-
-            aligned_adj = P @ curr_adj @ torch.transpose(P, 0, 1)
-            align_loss = torch.norm(aligned_adj - ref_adj)
-            loss = feat_loss + align_loss
-            loss.backward()  # Calculate gradients
-            self.writer.add_scalar("optimization/align_loss", loss, i)
-            print("iter: ", i, "; loss: ", loss)
-            opt.step()
-
-        return P, aligned_adj, P @ curr_feat
-
-    def make_pred_real(self, adj, start):
-        # house graph
-        if self.args.dataset == "syn1" or self.args.dataset == "syn2":
-            # num_pred = max(G.number_of_edges(), 6)
-            pred = adj[np.triu(adj) > 0]
-            real = adj.copy()
-
-            if real[start][start + 1] > 0:
-                real[start][start + 1] = 10
-            if real[start + 1][start + 2] > 0:
-                real[start + 1][start + 2] = 10
-            if real[start + 2][start + 3] > 0:
-                real[start + 2][start + 3] = 10
-            if real[start][start + 3] > 0:
-                real[start][start + 3] = 10
-            if real[start][start + 4] > 0:
-                real[start][start + 4] = 10
-            if real[start + 1][start + 4]:
-                real[start + 1][start + 4] = 10
-            real = real[np.triu(real) > 0]
-            real[real != 10] = 0
-            real[real == 10] = 1
-
-        # cycle graph
-        elif self.args.dataset == "syn4":
-            pred = adj[np.triu(adj) > 0]
-            real = adj.copy()
-            # pdb.set_trace()
-            if real[start][start + 1] > 0:
-                real[start][start + 1] = 10
-            if real[start + 1][start + 2] > 0:
-                real[start + 1][start + 2] = 10
-            if real[start + 2][start + 3] > 0:
-                real[start + 2][start + 3] = 10
-            if real[start + 3][start + 4] > 0:
-                real[start + 3][start + 4] = 10
-            if real[start + 4][start + 5] > 0:
-                real[start + 4][start + 5] = 10
-            if real[start][start + 5]:
-                real[start][start + 5] = 10
-            real = real[np.triu(real) > 0]
-            real[real != 10] = 0
-            real[real == 10] = 1
-
-        return pred, real
 
 
 class ExplainModule(nn.Module):
@@ -367,7 +196,7 @@ class ExplainModule(nn.Module):
         self.label = label
         self.graph_idx = graph_idx
         self.writer = writer
-#         self.mask_act = args.mask_act
+
         self.use_sigmoid = use_sigmoid
         self.graph_mode = graph_mode
 
@@ -383,11 +212,10 @@ class ExplainModule(nn.Module):
             params.append(self.mask_bias)
         # For masking diagonal entries
         self.diag_mask = torch.ones(num_nodes, num_nodes) - torch.eye(num_nodes)
-#         if args.gpu:
+
         self.diag_mask = self.diag_mask.cuda()
         
-        # self.scheduler, self.optimizer = train_utils.build_optimizer(args, params)
-        # self.scheduler, self.optimizer = train_utils.build_optimizer(args, params)
+
         filter_fn = filter(lambda p : p.requires_grad, params)
         self.optimizer = optim.Adam(filter_fn, lr=0.01)
         scheduler = None
@@ -424,9 +252,6 @@ class ExplainModule(nn.Module):
         elif init_strategy == "const":
             nn.init.constant_(mask, const_val)
 
-#         if self.args.mask_bias:
-#             mask_bias = nn.Parameter(torch.FloatTensor(num_nodes, num_nodes))
-#             nn.init.constant_(mask_bias, 0.0)
         
         mask_bias = None
 
@@ -440,13 +265,10 @@ class ExplainModule(nn.Module):
 #         elif self.mask_act == "ReLU":
 #             sym_mask = nn.ReLU()(self.mask)
         sym_mask = (sym_mask + sym_mask.t()) / 2
-#         adj = self.adj.cuda() if self.args.gpu else self.adj
+
         adj = self.adj.cuda()
         masked_adj = adj * sym_mask
-#         if self.args.mask_bias:
-#             bias = (self.mask_bias + self.mask_bias.t()) / 2
-#             bias = nn.ReLU6()(bias * 6) / 6
-#             masked_adj += (bias + bias.t()) / 2
+
         return masked_adj * self.diag_mask
 
     def mask_density(self):
@@ -455,7 +277,7 @@ class ExplainModule(nn.Module):
         return mask_sum / adj_sum
 
     def forward(self, node_idx, unconstrained=False, mask_features=True, marginalize=False):
-#         x = self.x.cuda() if self.args.gpu else self.x
+
         x = self.x.cuda()
         if unconstrained:
             sym_mask = torch.sigmoid(self.mask) if self.use_sigmoid else self.mask
@@ -464,6 +286,7 @@ class ExplainModule(nn.Module):
             )
         else:
             self.masked_adj = self._masked_adj()
+
             if mask_features:
                 feat_mask = (
                     torch.sigmoid(self.feat_mask)
@@ -478,15 +301,8 @@ class ExplainModule(nn.Module):
                 else:
                     x = x * feat_mask
 
-        print(self.masked_adj)
-        nxgraph = nx.from_numpy_matrix(self.masked_adj[0])
-        g = dgl.DGLGraph(nxgraph)
+        ypred, adj_att = self.model(x, self.masked_adj)
 
-        ypred = self.model(g)
-
-        # nxgraph = nx.from_numpy_matrix(self.adj.cpu().detach().numpy()[0])
-        # g_orig = dgl.DGLGraph(nxgraph)
-        # ypred = self.model(g)
 
         res = nn.Softmax(dim=0)(ypred[0])
         return res
@@ -498,7 +314,7 @@ class ExplainModule(nn.Module):
         if self.adj.grad is not None:
             self.adj.grad.zero_()
             self.x.grad.zero_()
-#         if self.args.gpu:
+
         adj = self.adj.cuda()
         x = self.x.cuda()
         label = self.label.cuda()
@@ -515,16 +331,12 @@ class ExplainModule(nn.Module):
         return self.adj.grad, self.x.grad
 
     def loss(self, pred, pred_label, node_idx, epoch):
-        """
-        Args:
-            pred: prediction made by current model
-            pred_label: the label predicted by the original model.
-        """
+
         pred_label_node = pred_label 
         gt_label_node = self.label
         print("pred:",pred,"gt_label",self.label)
         
-        logit = pred[gt_label_node]
+        logit = pred[gt_label_node] + EPSILON
         pred_loss = -torch.log(logit)
         # size
         mask = self.mask
@@ -553,7 +365,7 @@ class ExplainModule(nn.Module):
         m_adj = self.masked_adj if self.graph_mode else self.masked_adj[self.graph_idx]
         L = D - m_adj
         pred_label_t = torch.tensor(pred_label, dtype=torch.float)
-#         if self.args.gpu:
+
         pred_label_t = pred_label_t.cuda()
         L = L.cuda()
         if self.graph_mode:
@@ -565,8 +377,8 @@ class ExplainModule(nn.Module):
             )
 
 
-        # loss = pred_loss + size_loss + lap_loss + mask_ent_loss + feat_size_loss
-        loss = pred_loss
+        loss = pred_loss + size_loss + lap_loss + mask_ent_loss + feat_size_loss
+        # loss = pred_loss
         if self.writer is not None:
             self.writer.add_scalar("optimization/size_loss", size_loss, epoch)
             self.writer.add_scalar("optimization/feat_size_loss", feat_size_loss, epoch)
@@ -617,18 +429,6 @@ class ExplainModule(nn.Module):
             "mask/adj", tensorboardX.utils.figure_to_image(fig), epoch
         )
 
-        if self.args.mask_bias:
-            fig = plt.figure(figsize=(4, 3), dpi=400)
-            # use [0] to remove the batch dim
-            plt.imshow(self.mask_bias.cpu().detach().numpy(), cmap=plt.get_cmap("BuPu"))
-            cbar = plt.colorbar()
-            cbar.solids.set_edgecolor("face")
-
-            plt.tight_layout()
-            fig.canvas.draw()
-            self.writer.add_image(
-                "mask/bias", tensorboardX.utils.figure_to_image(fig), epoch
-            )
 
     def log_adj_grad(self, node_idx, pred_label, epoch, label=None):
         log_adj = False
@@ -670,7 +470,6 @@ class ExplainModule(nn.Module):
                 label_node_feat=True,
                 nodecolor="feat",
                 edge_vmax=None,
-                args=self.args,
             )
         io_utils.log_matrix(self.writer, x_grad, "grad/feat", epoch)
 
@@ -693,13 +492,12 @@ class ExplainModule(nn.Module):
                 label_node_feat=True,
                 nodecolor="feat",
                 edge_vmax=None,
-                args=self.args,
             )
         else:
             # G = io_utils.denoise_graph(adj_grad, node_idx, label=label, threshold=0.5)
             G = io_utils.denoise_graph(adj_grad, node_idx, threshold_num=12)
             io_utils.log_graph(
-                self.writer, G, name="grad/graph", epoch=epoch, args=self.args
+                self.writer, G, name="grad/graph", epoch=epoch
             )
 
         # if graph attention, also visualize att
@@ -724,7 +522,6 @@ class ExplainModule(nn.Module):
                 epoch=epoch,
                 label_node_feat=True,
                 edge_vmax=None,
-                args=self.args,
             )
         else:
             G = io_utils.denoise_graph(
@@ -738,6 +535,5 @@ class ExplainModule(nn.Module):
                 nodecolor="label",
                 epoch=epoch,
                 edge_vmax=None,
-                args=self.args,
             )
 

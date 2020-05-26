@@ -62,7 +62,10 @@ def ReadFlattenVerilogToGraph(filename):
     idx = 0
     for in_port in input_port_list:
         gate_dict[in_port[0]] = idx
-        gate_type_dict[idx] = 0
+        gate_type_dict[idx] = {}
+        gate_type_dict[idx]['type'] = 0
+        gate_type_dict[idx]['inst'] = in_port[0]
+        gate_type_dict[idx]['name'] = 'Input'
         node_list.append(idx)
         idx += 1
 
@@ -72,38 +75,48 @@ def ReadFlattenVerilogToGraph(filename):
         if("DFFSR" in a_gate[0][0]):
             # special handle for D-Fflip-flopSR
             gate_dict[a_gate[-3][1]] = idx
-            gate_type_dict[idx] = gate_types[a_gate[0][0]]
         else:
             gate_dict[a_gate[-1][1]] = idx
-            gate_type_dict[idx] = gate_types[a_gate[0][0]]
+        gate_type_dict[idx] = {}
+        gate_type_dict[idx]['type'] = gate_types[a_gate[0][0]]
+        gate_type_dict[idx]['inst'] = a_gate[0][1]
+        gate_type_dict[idx]['type_name'] = a_gate[0][0]
+        gate_type_dict[idx]['gate_name'] = a_gate[-1][1]
         idx += 1
 
     # Add output ports to node_list and gate_dict:
     for out_port in output_port_list:
-        gate_type_dict[idx] = 1  # gate type is output port
+        gate = {}
+        gate['type'] = 1
+        gate['name'] = 'Output'
+        gate_type_dict[idx] = gate  # gate type is output port
         node_list.append(idx)
-        gate_dict[out_port[0]] = idx
+        gate_dict[out_port[0]+'_port'] = idx
         idx += 1
     # Append vcc and gnd to the end of gate_dict and node_list
     gate_dict["1'b0"] = idx
     node_list.append(idx)
-    gate_type_dict[idx] = 0
+    gate_type_dict[idx] = {}
+    gate_type_dict[idx]['type'] = 0
+    gate_type_dict[idx]['name'] = 'Gnd'
     idx += 1
     gate_dict["1'b1"] = idx
     node_list.append(idx)
-    gate_type_dict[idx] = 0
+    gate_type_dict[idx] = {}
+    gate_type_dict[idx]['type'] = 0
+    gate_type_dict[idx]['name'] = 'Vcc'
     idx += 1
 
-    existing_length = idx
     # Add connections to edge_list:
     for idx, out_port in enumerate(output_port_list):
-        node_list.append(idx+existing_length)
-        edge_list.append((gate_dict[out_port[0]], idx+existing_length))
+        # node_list.append(idx+existing_length)
+        node_list.append(gate_dict[out_port[0]+'_port'])
+        edge_list.append((gate_dict[out_port[0]], gate_dict[out_port[0]+'_port'])) ##connection btw buffer and output port
 
     # Add connections to edge_list:
     for a_gate in gate_list:
-        #     print(a_gate)
         # add all connections including a self-loop
+        edges = []
         for connection in a_gate[1:]:
             if("DFFSR" in a_gate[0][0]):
                 # special handle for DFFSR;
@@ -112,6 +125,8 @@ def ReadFlattenVerilogToGraph(filename):
             else:
                 edge_list.append(
                     (gate_dict[connection[1]], gate_dict[a_gate[-1][1]]))
+                edges.append((gate_dict[connection[1]], gate_dict[a_gate[-1][1]]))
+        gate_type_dict[gate_dict[a_gate[-1][1]]]['connection'] = edges  
 
     existing_length = len(node_list)
 
@@ -122,11 +137,12 @@ def ReadFlattenVerilogToGraph(filename):
     Gx.add_nodes_from(node_list)
     Gx.add_edges_from(edge_list)
     # check isolated nodes and remove if exists
-    Gx.remove_nodes_from(list(nx.isolates(Gx)))
+    isolated_nodes = list(nx.isolates(Gx))
+    Gx.remove_nodes_from(isolated_nodes)
     G = dgl.DGLGraph()
     G.from_networkx(Gx)
 
-    return G, gate_dict, input_port_list, output_port_list
+    return G, gate_dict,gate_type_dict, input_port_list, output_port_list
 
 
 def ReadHierarchicalVerilogToGraph(modulepath, topmodule_name):
@@ -135,7 +151,8 @@ def ReadHierarchicalVerilogToGraph(modulepath, topmodule_name):
     label = 0
     edge_list = []
     node_list = []
-    
+    node_type_list=[]
+
     IO_type_dict = {}
     # componentlist=[]
     module_dict={}
@@ -154,7 +171,7 @@ def ReadHierarchicalVerilogToGraph(modulepath, topmodule_name):
                 module_inst['Index'] = module_num
 
                 existing_length = len(gate_label)
-                G, gate_dict, input_port_list, output_port_list = ReadFlattenVerilogToGraph(
+                G, gate_dict,gate_type_dict, input_port_list, output_port_list = ReadFlattenVerilogToGraph(
                     filepath+'/'+filename)
 
                 a = G.edges()[0].tolist()
@@ -165,6 +182,8 @@ def ReadHierarchicalVerilogToGraph(modulepath, topmodule_name):
                 edges = list(zip(a, b))
 
                 nodes = G.nodes()
+                node_types = list(gate_type_dict[n.item()]['type'] for n in G.nodes())
+                node_type_list = node_type_list + node_types
                 # node index adjustment
                 nodes = list(n + existing_length for n in nodes)
                 # num_merge = 0 ##keep track of the number of port merged due to same IO
@@ -274,6 +293,7 @@ def ReadHierarchicalVerilogToGraph(modulepath, topmodule_name):
                             ## add gate connecting to outputs of components to gate_dict 
                             gate_dict[connection[1]] = gate_length + 2 + existing_length
                             print("creating new gate:",connection[1],": ",gate_length + 2 + existing_length)
+                            gate_type_dict[gate_length + 2 + existing_length] = len(module_list) + 2
                             gate_length +=1
                         ##add connection to edgelist
                         output_node = module['IO'][connection[0]]['index']
@@ -286,6 +306,8 @@ def ReadHierarchicalVerilogToGraph(modulepath, topmodule_name):
                             ## add gate connecting to outputs of components to gate_dict 
                             gate_dict[connection[1]] = gate_length + 2 + existing_length
                             print("creating new gate:",connection[1],": ",gate_length + 2 + existing_length)
+
+                            gate_type_dict[gate_length + 2 + existing_length] = len(module_list) + 2
                             gate_length +=1
                         #connect gate to inputs of components
                         input_node = module['IO'][connection[0]]['index']
@@ -340,7 +362,9 @@ def ReadHierarchicalVerilogToGraph(modulepath, topmodule_name):
     node_list = node_list + mips_node_list
     edge_list = edge_list + mips_edge_list
 
-
+    print(gate_type_dict)
+    node_types = list(gate_type_dict[n] for n in mips_node_list)
+    node_type_list = node_type_list + node_types
     savepath = modulepath +'/graphs/'
 
     if(not path.exists(savepath)):
@@ -364,6 +388,7 @@ def ReadHierarchicalVerilogToGraph(modulepath, topmodule_name):
     np.savetxt(savepath+topmodule_name+'_graph_indicator.txt',graph_indicator,"%s",delimiter=",")
     np.savetxt(savepath+topmodule_name+'_graph_labels.txt',graph_labels,"%s",delimiter=",")
     np.savetxt(savepath+topmodule_name+'_node_labels.txt',node_label,"%s",delimiter=",")
+    np.savetxt(savepath+topmodule_name+'_node_attributes.txt',node_type_list,"%s",delimiter=",")
     com_lib=[]
 
     for idx,c in enumerate(module_dict):

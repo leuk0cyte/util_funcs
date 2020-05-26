@@ -81,7 +81,42 @@ class PYGNet(torch.nn.Module):
         x = F.relu(self.conv2(x, edge_index))
         x = torch.mean(x, 0, True)
         return self.classify(x)
-    
+
+class PYGNodeEncoderNet(torch.nn.Module):
+    def __init__(self,in_dim,hidden_dim,n_classes):
+        super(PYGNodeEncoderNet, self).__init__()
+        self.conv1 = GCNConv(in_dim, hidden_dim)
+        self.conv2 = GCNConv(hidden_dim, n_classes)
+
+    def forward(self, x,edge_index):
+        
+        x = self.conv1(x, edge_index)
+        x = F.relu(x)
+        x = F.dropout(x, training=self.training)
+        x = self.conv2(x, edge_index)
+
+        return F.log_softmax(x, dim=1)
+    def train_(self,model,dataset,labels,train_mask,initial_lr=0.001,training_epoch=500,device=None):
+        loss_func = nn.CrossEntropyLoss().to(device)
+        optimizer = optim.Adam(model.parameters(), lr = initial_lr)
+        if device is None:
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+        model.to(device)
+        epoch_losses = []
+        for epoch in range(training_epoch):
+            model.train()
+            epoch_loss = 0
+            for iter, bg in enumerate(dataset):
+                x = dataset['x'].to(device)
+                edges = dataset['edge_index'].to(device)
+                out = model(x,edges)
+                loss = F.nll_loss(out[train_mask], labels[train_mask])
+                loss.backward()
+                optimizer.step()
+                print(loss)
+        return model,epoch_losses,optimizer,out
+
 class dglGCNModel(nn.Module):
     def __init__(self, in_dim, hidden_dim, n_classes):
         super(dglGCNModel, self).__init__()
@@ -117,6 +152,9 @@ class pygGATModel(nn.Module):
         x = F.relu(self.GATConv2(x, edge_index))
         x = torch.mean(x, 0, True)
         return self.classify(x)
+
+
+
 
 def train_pygmodel(model,dataset,labels,initial_lr=0.001,training_epoch=500,device=None):
     loss_func = nn.CrossEntropyLoss().to(device)
@@ -181,7 +219,7 @@ def train_dglmodel(model,dataset,labels,initial_lr=0.001,training_epoch=500,devi
         epoch_losses.append(epoch_loss)
     return model,epoch_losses,optimizer
 
-def save_checkpoint(filename,model, optimizer, args, num_epochs=-1, isbest=False, cg_dict=None):
+def save_checkpoint(filename,model, optimizer, num_epochs=-1, isbest=False, cg_dict=None):
     """Save pytorch model checkpoint.
     
     Args:

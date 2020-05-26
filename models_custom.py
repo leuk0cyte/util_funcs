@@ -234,7 +234,8 @@ class GraphGCNNet(nn.Module):
         adj_att_all.append(adj_att)
         # x = self.act(x)
         # out: [batch_size x num_nodes x hidden_dim]
-        out, _ = torch.max(x, dim=-2)
+        # out, _ = torch.max(x, dim=-2)
+        out = torch.mean(x, dim=-2)
         out_all.append(out)
         if self.num_aggs == 2:
             out = torch.sum(x, dim=-2)
@@ -296,6 +297,6 @@ def train(model,dataset,labels,initial_lr=0.001,training_epoch=500,device=None):
             optimizer.step()
             epoch_loss += loss.detach().item()
         epoch_loss /= (iter + 1)
-    #     print('Epoch {}, loss {:.4f}'.format(epoch, epoch_loss))
+        print('Epoch {}, loss {:.4f}'.format(epoch, epoch_loss))
         epoch_losses.append(epoch_loss)
     return model,epoch_losses,optimizer
