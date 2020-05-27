@@ -57,7 +57,7 @@ def VisualizeGraph(graph=None,node_labels=None,mode='dgl',ax=None):
         vmax = len(np.unique(node_labels)) if node_labels is not None else 37
         nx.draw(graph,pos,with_labels=False,node_size=500,font_size=14,node_color=node_labels,cmap=cmap,vmin = vmin,vmax=vmax,ax=ax)
         # plt.savefig('c432_undirected.png')
-#         nx.draw_networkx_labels(nx_G_directed_sd,pos,labels=gate_type_dict2)
+        # nx.draw_networkx_labels(nx_G_directed_sd,pos,labels=gate_type_dict2)
         nx.draw_networkx_labels(graph,pos,ax=ax)
         if cmap is not None:
             cm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin = vmin, vmax=vmax))
@@ -108,37 +108,27 @@ def visualize(edge_index, edge_mask, y=None,
                     num_nodes=y.size(0)).to('cpu')
 
         G = to_networkx(data, node_attrs=['y'], edge_attrs=['att'])
-#         mapping = {k: i for k, i in enumerate(subset.tolist())}
+        # mapping = {k: i for k, i in enumerate(subset.tolist())}
         mapping = {k: i for k, i in enumerate(subset)}
-#         print(mapping)
-#         G = nx.relabel_nodes(G, mapping)
+        # print(mapping)
+        # G = nx.relabel_nodes(G, mapping)
 
         kwargs['with_labels'] = kwargs.get('with_labels') or True
         kwargs['font_size'] = kwargs.get('font_size') or 10
         kwargs['node_size'] = kwargs.get('node_size') or 200
         kwargs['cmap'] = kwargs.get('cmap') or 'cool'
 
-#         pos = nx.kamada_kawai_layout(G)
+        # pos = nx.kamada_kawai_layout(G)
         pos = nx.spectral_layout(G)
         ax = plt.figure(figsize=(20,10))
-#         for source, target, data in G.edges(data=True):
-#             ax.annotate(
-#                 '', xy=pos[target], xycoords='data', xytext=pos[source],
-#                 textcoords='data', arrowprops=dict(
-#                     arrowstyle="-",
-#                     alpha=max(data['att'], 0.1),
-#                     shrinkA=sqrt(kwargs['node_size']) / 2.0,
-#                     shrinkB=sqrt(kwargs['node_size']) / 2.0,
-# #                     connectionstyle="arc3,rad=0.1",
-#                 ))
-# #         if node_feature_mask is not None:
+
         nx.draw_networkx_nodes(G, pos, **kwargs)
-#         print("edge_index:",edge_index.cpu())
-#         print("G.edges:",G.edges)
+        # print("edge_index:",edge_index.cpu())
+        # print("G.edges:",G.edges)
         color = np.array(edge_mask.cpu())
     
-#         cmap = plt.get_cmap('gist_rainbow',color)
-#         nx.draw(nx_G_undirected,pos,with_labels=False,node_size=500,font_size=14,node_color=node_type,cmap=cmap,vmin = vmin,vmax=vmax)
+        # cmap = plt.get_cmap('gist_rainbow',color)
+        # nx.draw(nx_G_undirected,pos,with_labels=False,node_size=500,font_size=14,node_color=node_type,cmap=cmap,vmin = vmin,vmax=vmax)
         
         nx.draw_networkx_edges(G, pos,edgelist=edge_list,
                        width=3, alpha=0.5)
@@ -162,10 +152,23 @@ def AdjToEdgelist(adj):
     
     return edge_list
 
-# def EdgelistToAdj(edge_list):
-#     for e0,e1 in edge_list:
-
-
+def EdgelistToAdj(edge_list,undirected=True):
+    num_nodes = max(edge_list)
+    adj = np.zeros((num_nodes,num_nodes))
+    for e0,e1 in edge_list:
+        adj[e0,e1] = 1
+        if(undirected):
+            adj[e1,e0] = 1
+def ReadEdgeList(path,name):
+    prefix = path+name
+    filename_adj = prefix + "_A.txt"
+    EdgeList = []
+    with open(filename_adj) as f:
+        for line in f:
+            line = line.strip("\n").split(",")
+            e0, e1 = (int(line[0].strip(" ")), int(line[1].strip(" ")))
+            EdgeList.append((e0,e1))
+    return EdgeList
 def read_graphfile(datadir, dataname, max_nodes=None, edge_labels=False):
     """ Read data from https://ls11-www.cs.tu-dortmund.de/staff/morris/graphkerneldatasets
         graph index starts with 1 in file
@@ -321,7 +324,6 @@ def compress_graph(G):
             neighbors = G.neighbors(u)
             for n in neighbors:
                 if((u!=n)&(G.nodes[u]['label']==G.nodes[n]['label'])):
-#                     print(u,n)
                     G = nx.contracted_nodes(G, u, n)
                     node_to_delete.append(n)
     
