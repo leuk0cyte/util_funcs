@@ -11,6 +11,10 @@ from torch_geometric.data import Data
 from torch_geometric.utils import k_hop_subgraph, to_networkx
 import os
 import numpy as np
+import random
+from sklearn.manifold import TSNE
+
+from sknetwork.visualization import svg_graph
 
 def build_circuit_graph_undirected(node_list,edge_list):
     g = dgl.DGLGraph()
@@ -176,6 +180,7 @@ def read_graphfile(datadir, dataname, max_nodes=None, edge_labels=False):
     Returns:
         List of networkx objects with graph and node labels
     """
+    logfile = open(datadir+'readgraph_log.txt','w+') ##open a txtfile to save log message
     prefix = os.path.join(datadir, dataname)
     filename_graph_indic = prefix + "_graph_indicator.txt"
     # index of graphs that a given node belongs to
@@ -217,7 +222,7 @@ def read_graphfile(datadir, dataname, max_nodes=None, edge_labels=False):
     except IOError:
         print("No node attributes")
 
-    label_has_zero = False
+
     filename_graphs = prefix + "_graph_labels.txt"
     graph_labels = []
 
@@ -260,6 +265,7 @@ def read_graphfile(datadir, dataname, max_nodes=None, edge_labels=False):
         for line in f:
             line = line.strip("\n").split(",")
             e0, e1 = (int(line[0].strip(" ")), int(line[1].strip(" ")))
+            logfile.write("Reading edge: ({},{})\n".format(e0,e1))
             adj_list[graph_indic[e0]].append((e0, e1))
             index_graph[graph_indic[e0]] += [e0, e1]
             # edge_label_list[graph_indic[e0]].append(edge_labels[num_edges])
@@ -302,20 +308,52 @@ def read_graphfile(datadir, dataname, max_nodes=None, edge_labels=False):
             G.graph["feat_dim"] = node_attrs[0].shape[0]
 
         # relabeling
-        mapping = {}
-        it = 0
-        if float(nx.__version__) < 2.0:
-            for n in G.nodes():
-                mapping[n] = it
-                it += 1
-        else:
-            for n in G.nodes:
-                mapping[n] = it
-                it += 1
-        # indexed from 0
-        graphs.append(nx.relabel_nodes(G, mapping))
-        dgraphs.append(nx.relabel_nodes(DG, mapping))
-    return graphs,dgraphs
+        # mapping = {}
+        # it = 0
+        # if float(nx.__version__) < 2.0:
+        #     for n in G.nodes():
+        #         mapping[n] = it
+        #         it += 1
+        # else:
+        #     for n in G.nodes:
+        #         mapping[n] = it
+        #         it += 1
+        # # indexed from 0
+        # graphs.append(nx.relabel_nodes(G, mapping))
+        # dgraphs.append(nx.relabel_nodes(DG, mapping))
+        graphs.append(G)
+        dgraphs.append(DG)
+    return graphs,dgraphs,adj_list
+def EmbedClusters(G,cluster_labels,width=1000,height=800,std=10,margin=20):
+    num_cluster = len(np.unique(cluster_labels))
+    random.seed(0)
+
+    c_embedding= np.zeros((num_cluster,num_cluster))
+    for i in range(num_cluster):
+        c_embedding[i,i] = 1
+    c_center = TSNE(n_components=2).fit_transform(c_embedding)
+    
+    # loc_x = np.random.randint(margin,width-margin,num_cluster)
+    # loc_y = np.random.randint(margin,height-margin,num_cluster)
+    print(c_center)
+    embedding = np.zeros((len(cluster_labels),2))
+    print(embedding.shape)
+    for idx,c in enumerate(cluster_labels):
+       embedding[idx,0] = random.gauss(c_center[c,0],std)
+       embedding[idx,1] = random.gauss(c_center[c,1],std)
+    return embedding,c_center
+
+def DrawGraphToSVGImage(graph,filename,position=None,node_names=None,labels=None,node_size=5,edge_width=0.5,display_edges=True,width=1000,height=800):
+    #adjacency – Adjacency matrix of the graph.
+    #position – Positions of the nodes.
+    #names – Names of the nodes.
+    #labels – Labels of the nodes (negative values mean no label).
+    position += abs(np.min(position))+1
+    adjacency = nx.adjacency_matrix(graph)
+    image = svg_graph(adjacency,position=position,names=node_names,labels=labels,node_size=node_size,
+                        edge_width=edge_width,display_edges=display_edges,
+                        width=width,height = height,filename=filename)
+
 
 def compress_graph(G):
     node_to_delete=[]
@@ -328,3 +366,24 @@ def compress_graph(G):
                     node_to_delete.append(n)
     
     return G
+
+def NXtoGEXF(G,filename,pos,node_size,node_color):
+    if pos is None:
+        pos = nx.kamada_kawai_layout(G)
+    for node in pos:
+        G.nodes[node]['viz'] = {}
+        G.nodes[node]['viz']['color']={}
+        G.nodes[node]['viz']['color']['r'] = node_color[node]['r']
+        G.nodes[node]['viz']['color']['g'] = node_color[node]['g']
+        G.nodes[node]['viz']['color']['b'] = node_color[node]['b']
+        G.nodes[node]['viz']['color']['a'] = node_color[node]['a']
+        G.nodes[node]['viz']['position']={}
+        G.nodes[node]['viz']['position']['x'] = pos[node][0]
+        G.nodes[node]['viz']['position']['y'] = pos[node][1]
+        G.nodes[node]['viz']['position']['z'] = 0.0
+        #     G.nodes[node]['viz']['size']
+        G.nodes[node]['viz']['size']= node_size
+        # # print(pos)
+
+        # print(G.nodes[108])
+    nx.write_gexf(G, filename,version='1.2draft')
