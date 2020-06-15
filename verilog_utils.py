@@ -374,6 +374,7 @@ def ReadHierarchicalVerilogToGraph(modulepath, topmodule_name,current_node_idx,I
 
     savepath = modulepath+'/graphs/'
     if(IsTopModule):
+        logfile.write("------Generating graph data files------\n")
         if(not path.exists(savepath)):
             os.mkdir(savepath)
             print('Created Dir: ',savepath)
@@ -386,8 +387,8 @@ def ReadHierarchicalVerilogToGraph(modulepath, topmodule_name,current_node_idx,I
 
         node_labels = np.zeros((len(node_list),1))
         readme = []
-        node_labels,readme,current_idx = GetNodeLabelFromModuleDict(module_dict,node_labels,starting_idx=0)
-        idx = current_idx + 1
+        node_labels,readme,current_idx = GetNodeLabelFromModuleDict(module_dict,readme,node_labels,starting_idx=0,logfile=logfile)
+        idx = current_idx
         node_idx = [module_dict['Gates'][g]['index'] for g in module_dict['Gates']]
         node_idx += [module_dict['IO'][g]['index'] for g in module_dict['IO']]
         node_labels[node_idx]=idx
@@ -409,22 +410,44 @@ def ReadHierarchicalVerilogToGraph(modulepath, topmodule_name,current_node_idx,I
         logfile.write("---Returning...---\n")
         print("---Returning...---\n")
     return G,module_dict,idx,node_list,edge_list
-def GetNodeLabelFromModuleDict(module_dict,node_labels,starting_idx=0):
-    readme = []
+def GetNodeLabelFromModuleDict(module_dict,readme,node_labels,starting_idx=0,logfile=None):
     current_idx = starting_idx
-
-    for idx,mod in enumerate(module_dict['Modules']):
-        idx+=starting_idx
-        
+    idx=starting_idx
+    for mod in module_dict['Modules']:
+        logfile.write("starting idx:{};  idx adjust to:{}\n".format(starting_idx,idx))
         if(bool(module_dict['Modules'][mod]['Modules'])):
-            node_labels,readme,current_idx = GetNodeLabelFromModuleDict(module_dict['Modules'][mod],node_labels,starting_idx=idx)
-        idx=current_idx
+            logfile.write("found submodules in: {};  starting_idx is:{}\n".format(mod,idx))
+            node_labels,readme,current_idx = GetNodeLabelFromModuleDict(module_dict['Modules'][mod],readme,node_labels,starting_idx=idx,logfile=logfile)
+            idx=current_idx
+        logfile.write("current_idx :{};  idx adjust to:{}\n".format(current_idx,idx))
         node_idx = [module_dict['Modules'][mod]['Gates'][g]['index'] for g in module_dict['Modules'][mod]['Gates']]
         node_idx += [module_dict['Modules'][mod]['IO'][g]['index'] for g in module_dict['Modules'][mod]['IO']]
         node_labels[node_idx]=idx
         readme.append((mod,idx))
-        current_idx=idx+1
+        idx+=1
+        current_idx=idx
     return node_labels,readme,current_idx
+
+def search(module,mod_name,index):
+    for gate in module['Gates']:
+        a_gate = module['Gates'][gate]
+        if(a_gate['index'] == index):
+            print(mod_name,":Gate:",gate)
+    for gate in module['IO']:
+        a_gate = module['IO'][gate]
+        if(a_gate['index'] == index):
+            print(mod_name,":IO:",gate)
+
+def search_module(module_dict,index):
+    for mod in module_dict['Modules']:
+        mod_dict = module_dict['Modules'][mod]
+        search(mod_dict,mod,index)
+def search_index(module_dict,index):
+    ##search top level
+    search(module_dict,"top",index)
+    #search each module
+    if(bool(module_dict['Modules'])):
+        search_module(module_dict,index)
 # INCOMPLETE
 def ReadGraphAndVerify(graphsPath,verilogPath,modulename):
     graph_prefix = graphsPath + '/' + modulename

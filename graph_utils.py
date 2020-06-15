@@ -70,7 +70,7 @@ def VisualizeGraph(graph=None,node_labels=None,mode='dgl',ax=None):
 
 
 
-def visualize(edge_index, edge_mask, y=None,
+def visualize_pyg_gnnexplainer(edge_index, edge_mask, y=None,
                            threshold=None,**kwargs):
         if edge_mask is not None:
             assert edge_mask.size(0) == edge_index.size(1)
@@ -163,6 +163,7 @@ def EdgelistToAdj(edge_list,undirected=True):
         adj[e0,e1] = 1
         if(undirected):
             adj[e1,e0] = 1
+
 def ReadEdgeList(path,name):
     prefix = path+name
     filename_adj = prefix + "_A.txt"
@@ -173,6 +174,7 @@ def ReadEdgeList(path,name):
             e0, e1 = (int(line[0].strip(" ")), int(line[1].strip(" ")))
             EdgeList.append((e0,e1))
     return EdgeList
+
 def read_graphfile(datadir, dataname, max_nodes=None, edge_labels=False):
     """ Read data from https://ls11-www.cs.tu-dortmund.de/staff/morris/graphkerneldatasets
         graph index starts with 1 in file
@@ -324,6 +326,7 @@ def read_graphfile(datadir, dataname, max_nodes=None, edge_labels=False):
         graphs.append(G)
         dgraphs.append(DG)
     return graphs,dgraphs,adj_list
+
 def EmbedClusters(G,cluster_labels,width=1000,height=800,std=10,margin=20):
     num_cluster = len(np.unique(cluster_labels))
     random.seed(0)
@@ -335,14 +338,32 @@ def EmbedClusters(G,cluster_labels,width=1000,height=800,std=10,margin=20):
     
     # loc_x = np.random.randint(margin,width-margin,num_cluster)
     # loc_y = np.random.randint(margin,height-margin,num_cluster)
-    print(c_center)
     embedding = np.zeros((len(cluster_labels),2))
-    print(embedding.shape)
     for idx,c in enumerate(cluster_labels):
        embedding[idx,0] = random.gauss(c_center[c,0],std)
        embedding[idx,1] = random.gauss(c_center[c,1],std)
     return embedding,c_center
 
+def EmbedClusters_uniform(G,cluster_labels,width=1000,height=800,std=10,margin=20):
+    num_cluster = len(np.unique(cluster_labels))
+
+#     print(n)
+    x_spacing = width/int(np.sqrt(num_cluster))
+    y_spacing = height/int(np.sqrt(num_cluster))
+    
+    c_center = np.zeros((num_cluster,2))
+    for n in range(num_cluster):
+        x = n % int(np.sqrt(num_cluster)) * x_spacing
+        y = n // int(np.sqrt(num_cluster)) *y_spacing
+        c_center[n,0]=x
+        c_center[n,1]=y
+
+    pos = np.zeros((len(cluster_labels),2))
+
+    for idx,c in enumerate(cluster_labels):
+       pos[idx,0] = random.gauss(c_center[c,0],std)
+       pos[idx,1] = random.gauss(c_center[c,1],std)
+    return pos,c_center
 def DrawGraphToSVGImage(graph,filename,position=None,node_names=None,labels=None,node_size=5,edge_width=0.5,display_edges=True,width=1000,height=800):
     #adjacency – Adjacency matrix of the graph.
     #position – Positions of the nodes.
@@ -381,9 +402,28 @@ def NXtoGEXF(G,filename,pos,node_size,node_color):
         G.nodes[node]['viz']['position']['x'] = pos[node][0]
         G.nodes[node]['viz']['position']['y'] = pos[node][1]
         G.nodes[node]['viz']['position']['z'] = 0.0
-        #     G.nodes[node]['viz']['size']
-        G.nodes[node]['viz']['size']= node_size
-        # # print(pos)
 
-        # print(G.nodes[108])
+        G.nodes[node]['viz']['size']= node_size
+
     nx.write_gexf(G, filename,version='1.2draft')
+
+def search(module,mod_name,index):
+    for gate in module['Gates']:
+        a_gate = module['Gates'][gate]
+        if(a_gate['index'] == index):
+            print(mod_name,":Gate:",gate)
+    for gate in module['IO']:
+        a_gate = module['IO'][gate]
+        if(a_gate['index'] == index):
+            print(mod_name,":IO:",gate)
+
+def search_module(module_dict,index):
+    for mod in module_dict['Modules']:
+        mod_dict = module_dict['Modules'][mod]
+        search(mod_dict,mod,index)
+def search_index(module_dict,index):
+    ##search top level
+    search(module_dict,"top",index)
+    #search each module
+    if(bool(module_dict['Modules'])):
+        search_module(module_dict,index)
