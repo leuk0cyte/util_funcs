@@ -347,7 +347,6 @@ def EmbedClusters(G,cluster_labels,width=1000,height=800,std=10,margin=20):
 def EmbedClusters_uniform(G,cluster_labels,width=1000,height=800,std=10,margin=20):
     num_cluster = len(np.unique(cluster_labels))
 
-#     print(n)
     x_spacing = width/int(np.sqrt(num_cluster))
     y_spacing = height/int(np.sqrt(num_cluster))
     
@@ -407,23 +406,4 @@ def NXtoGEXF(G,filename,pos,node_size,node_color):
 
     nx.write_gexf(G, filename,version='1.2draft')
 
-def search(module,mod_name,index):
-    for gate in module['Gates']:
-        a_gate = module['Gates'][gate]
-        if(a_gate['index'] == index):
-            print(mod_name,":Gate:",gate)
-    for gate in module['IO']:
-        a_gate = module['IO'][gate]
-        if(a_gate['index'] == index):
-            print(mod_name,":IO:",gate)
 
-def search_module(module_dict,index):
-    for mod in module_dict['Modules']:
-        mod_dict = module_dict['Modules'][mod]
-        search(mod_dict,mod,index)
-def search_index(module_dict,index):
-    ##search top level
-    search(module_dict,"top",index)
-    #search each module
-    if(bool(module_dict['Modules'])):
-        search_module(module_dict,index)
