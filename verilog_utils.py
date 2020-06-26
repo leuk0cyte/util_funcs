@@ -12,6 +12,7 @@ import os.path
 from os import path
 import json
 from datetime import datetime
+
 class verilog_reader():
     def __init__(
         self,
@@ -207,14 +208,22 @@ class verilog_reader():
                                 
                                 # node_list.append(idx)
                         elif(module_inst['IO'][connection[0]]['type_name'] == "Input"):
-                            ## if connect to components input.
-                            if(not topmodule_name+connection[1] in self.wire_dict):
-                                self.wire_dict[topmodule_name+connection[1]] = {}
-                                self.wire_dict[topmodule_name+connection[1]]['source'] = []
-                                self.wire_dict[topmodule_name+connection[1]]['destination'] = []
-                                logfile.write("{}: Creating wire: {}, source:[], destination:{}\n".format(topmodule_name,topmodule_name+connection[1],module_inst['IO'][connection[0]]['index']))
-                                
-                            self.wire_dict[topmodule_name+connection[1]]['destination'].append(module_inst['IO'][connection[0]]['index'])
+                            ## if connect to components input
+                            if(connection[1] in self.PowerAndGnd):
+                                ##if connect to Vcc or Gnd
+                                logfile.write("{}: Adding connection to power/ground: source:{}, destination:{}\n".format(topmodule_name,connection[1],module_inst['IO'][connection[0]]['index']))
+                                self.wire_dict[connection[1]]['destination'].append(module_inst['IO'][connection[0]]['index'])
+                                logfile.write("test: {}, {}\n".format(connection[1],self.wire_dict[connection[1]]['destination']))
+                                # edge_list.append(
+                                #     (self.PowerAndGnd[connection[1]]['index'], module_inst['IO'][connection[0]]['index']))
+                            else:
+                                if(not topmodule_name+connection[1] in self.wire_dict):
+                                    self.wire_dict[topmodule_name+connection[1]] = {}
+                                    self.wire_dict[topmodule_name+connection[1]]['source'] = []
+                                    self.wire_dict[topmodule_name+connection[1]]['destination'] = []
+                                    logfile.write("{}: Creating wire: {}, source:[], destination:{}\n".format(topmodule_name,topmodule_name+connection[1],module_inst['IO'][connection[0]]['index']))
+                                self.wire_dict[topmodule_name+connection[1]]['destination'].append(module_inst['IO'][connection[0]]['index'])
+                            
 
                                 # idx+=1
 
@@ -267,8 +276,12 @@ class verilog_reader():
                 for connection in a_gate[1:]:
                     #if connect to intput
                     if (module_dict['Modules'][a_gate[0][1]]['IO'][connection[0]]['type_name'] =='Input'):
-                        self.wire_dict[topmodule_name+connection[1]]['destination'].append(module_dict['Modules'][a_gate[0][1]]['IO'][connection[0]]['index'])
-                        edge_list.append((self.wire_dict[topmodule_name+connection[1]]['source'],module_dict['Modules'][a_gate[0][1]]['IO'][connection[0]]['index']))
+                        #if connect to power/ground
+                        if(connection[1] in self.PowerAndGnd):
+                            edge_list.append((self.wire_dict[connection[1]]['source'], module_dict['Modules'][a_gate[0][1]]['IO'][connection[0]]['index']))
+                        else:
+                            self.wire_dict[topmodule_name+connection[1]]['destination'].append(module_dict['Modules'][a_gate[0][1]]['IO'][connection[0]]['index'])
+                            edge_list.append((self.wire_dict[topmodule_name+connection[1]]['source'],module_dict['Modules'][a_gate[0][1]]['IO'][connection[0]]['index']))
                     else:
                         self.wire_dict[topmodule_name+connection[1]]['source'] = module_dict['Modules'][a_gate[0][1]]['IO'][connection[0]]['index']
                         for dest in self.wire_dict[topmodule_name+connection[1]]['destination']:
@@ -283,7 +296,6 @@ class verilog_reader():
         module_dict['Gates'] = gate_type_dict
         module_dict['PowerAndGnd'] = {}
         module_dict['PowerAndGnd'] = self.PowerAndGnd
-
         Gx = nx.Graph()
         Gx.add_nodes_from(node_list)
         # print(edge_list)
@@ -343,7 +355,7 @@ class verilog_reader():
             logfile.write("starting idx:{};  idx adjust to:{}\n".format(starting_idx,idx))
             if(bool(module_dict['Modules'][mod]['Modules'])):
                 logfile.write("found submodules in: {};  starting_idx is:{}\n".format(mod,idx))
-                node_labels,readme,current_idx = GetNodeLabelFromModuleDict(module_dict['Modules'][mod],readme,node_labels,starting_idx=idx,logfile=logfile)
+                node_labels,readme,current_idx = self.GetNodeLabelFromModuleDict(module_dict['Modules'][mod],readme,node_labels,starting_idx=idx,logfile=logfile)
                 idx=current_idx
             logfile.write("current_idx :{};  idx adjust to:{}\n".format(current_idx,idx))
             node_idx = [module_dict['Modules'][mod]['Gates'][g]['index'] for g in module_dict['Modules'][mod]['Gates']]
