@@ -69,7 +69,6 @@ def VisualizeGraph(graph=None,node_labels=None,mode='dgl',ax=None):
             plt.colorbar(cm,ax=ax)
 
 
-
 def visualize_pyg_gnnexplainer(edge_index, edge_mask, y=None,
                            threshold=None,**kwargs):
         if edge_mask is not None:
@@ -406,4 +405,78 @@ def NXtoGEXF(G,filename,pos,node_size,node_color):
 
     nx.write_gexf(G, filename,version='1.2draft')
 
+def compute_matrix(nodes,labels,class_size,prediction):
+    num_true_class = np.unique(labels)
+    num_pred_class = np.unique(prediction)
+    recall_score = {} 
+    precision_score = {}
+    f1_score = {}
+    cluster_assignment = {}
+    for c in num_pred_class:
+        cluster_assignment[c] = []
+    for label in num_true_class:
+        node = nodes[np.where(labels==label)[0]]
+        intersect = np.zeros(len(num_pred_class))
+        recall = np.zeros(len(num_pred_class))
+        precision = np.zeros(len(num_pred_class))
+        f1 = np.zeros(len(num_pred_class))
+        
+        for idx in num_pred_class:
+            c = nodes[np.where(prediction==idx)[0]]
+            intersect[idx] = len(list(set(node).intersection(c)))
 
+            recall[idx] = intersect[idx] /class_size[label]
+            precision[idx] = intersect[idx]/len(c)
+            f1[idx] = 2/(1/recall[idx] + 1/precision[idx])
+        cluster = np.argmax(intersect)
+        if(recall[cluster] > 0.1):
+            cluster_assignment[cluster].append(label)
+        recall_score[label] = recall[cluster]
+        precision_score[label] = precision[cluster]
+        f1_score[label] = f1[cluster]
+        print("label:",label,"in cluster:",cluster, "Acc:",recall_score[label],"F1:",f1_score[label])
+
+    recall_score_by_cluster = {} 
+    precision_score_by_cluster = {}
+    f1_score_by_cluster = {}
+    for c in cluster_assignment:
+        true_labels = cluster_assignment[c]
+        true_label_node = []
+        size = 0
+        for label in true_labels:
+            true_label_node += list(nodes[np.where(labels==label)[0]])
+            size += class_size[label]
+        nodes_in_cluster = nodes[np.where(prediction==c)[0]]
+
+        intersect[idx] = len(list(set(true_label_node).intersection(nodes_in_cluster)))
+
+        
+        recall_score_by_cluster[c] = intersect[idx] /size
+        precision_score_by_cluster[c] = intersect[idx]/len(nodes_in_cluster)
+        f1_score_by_cluster[c] = 2/(1/recall_score_by_cluster[c] + 1/precision_score_by_cluster[c])
+
+    return precision_score,recall_score,f1_score,recall_score_by_cluster,precision_score_by_cluster,f1_score_by_cluster
+
+def compute_confusion_matrix(nodes,labels,prediction):
+    num_true_class = np.unique(labels)
+    print(num_true_class)
+    num_pred_class = np.unique(prediction)
+    confusion_matrix = np.zeros((len(num_pred_class),len(num_true_class)))
+
+    for j,label in enumerate(num_true_class):
+        node = nodes[np.where(labels==label)[0]]
+        for i,idx in enumerate(num_pred_class):
+            c = nodes[np.where(prediction==idx)[0]]
+            intersect = len(list(set(node).intersection(c)))
+            confusion_matrix[i,j] = intersect
+    return confusion_matrix
+
+def extract_subgraphs(G,cluster_labels):
+    subgraph_list = []
+    subgraph_label = np.unique(cluster_labels)
+    for l in subgraph_label:
+        nodes = np.array(G.nodes)[np.where(cluster_labels == l)[0]]
+        subgraph = G.subgraph(nodes)
+        subgraph_list.append(subgraph)
+
+    return subgraph_list
