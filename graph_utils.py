@@ -408,6 +408,7 @@ def NXtoGEXF(G,filename,pos,node_size,node_color):
 def compute_matrix(nodes,labels,class_size,prediction):
     num_true_class = np.unique(labels)
     num_pred_class = np.unique(prediction)
+    print(num_pred_class)
     recall_score = {} 
     precision_score = {}
     f1_score = {}
@@ -480,3 +481,18 @@ def extract_subgraphs(G,cluster_labels):
         subgraph_list.append(subgraph)
 
     return subgraph_list
+
+def reorder_nodes(G):
+    # relabeling
+    mapping = {}
+    it = 0
+    if float(nx.__version__) < 2.0:
+        for n in G.nodes():
+            mapping[n] = it
+            it += 1
+    else:
+        for n in G.nodes:
+            mapping[n] = it
+            it += 1
+    # indexed from 0
+    return nx.relabel_nodes(G, mapping)
