@@ -174,7 +174,7 @@ def ReadEdgeList(path,name):
             EdgeList.append((e0,e1))
     return EdgeList
 
-def read_graphfile(datadir, dataname, max_nodes=None, edge_labels=False):
+def read_graphfile(datadir, dataname, max_nodes=None, label_edge=False):
     """ Read data from https://ls11-www.cs.tu-dortmund.de/staff/morris/graphkerneldatasets
         graph index starts with 1 in file
 
@@ -206,7 +206,7 @@ def read_graphfile(datadir, dataname, max_nodes=None, edge_labels=False):
                     min_label_val = l
         # assume that node labels are consecutive
         num_unique_node_labels = max(node_labels) - min_label_val + 1
-        node_labels = [l - min_label_val for l in node_labels]
+        # node_labels = [l - min_label_val for l in node_labels]
     except IOError:
         print("No node labels")
 
@@ -241,7 +241,7 @@ def read_graphfile(datadir, dataname, max_nodes=None, edge_labels=False):
     label_map_to_int = {val: i for i, val in enumerate(label_vals)}
     graph_labels = np.array([label_map_to_int[l] for l in graph_labels])
 
-    if edge_labels:
+    if label_edge:
         # For Tox21_AHR we want to know edge labels
         filename_edges = prefix + "_edge_labels.txt"
         edge_labels = []
@@ -260,27 +260,37 @@ def read_graphfile(datadir, dataname, max_nodes=None, edge_labels=False):
     filename_adj = prefix + "_A.txt"
     adj_list = {i: [] for i in range(0, len(graph_labels))}
     # edge_label_list={i:[] for i in range(1,len(graph_labels)+1)}
-    index_graph = {i: [] for i in range(0, len(graph_labels))}
+    # index_graph = {i: [] for i in range(0, len(graph_labels))}
     num_edges = 0
     with open(filename_adj) as f:
         for line in f:
             line = line.strip("\n").split(",")
             e0, e1 = (int(line[0].strip(" ")), int(line[1].strip(" ")))
             logfile.write("Reading edge: ({},{})\n".format(e0,e1))
-            adj_list[graph_indic[e0]].append((e0, e1))
-            index_graph[graph_indic[e0]] += [e0, e1]
+            if(label_edge):
+                edge_label = edge_labels[num_edges]
+                adj_list[graph_indic[e0]].append((e0, e1,edge_label))
+            else:
+                adj_list[graph_indic[e0]].append((e0, e1))
+            # index_graph[graph_indic[e0]] += [e0, e1]
             # edge_label_list[graph_indic[e0]].append(edge_labels[num_edges])
             num_edges += 1
-    for k in index_graph.keys():
-        index_graph[k] = [u - 1 for u in set(index_graph[k])]
+    # for k in index_graph.keys():
+    #     index_graph[k] = [u - 1 for u in set(index_graph[k])]
 
     graphs = []
     dgraphs=[]
     for i in range(0, len(adj_list)):
         # indexed from 0 here
-        G = nx.from_edgelist(adj_list[i])
-        DG=nx.DiGraph()
-        DG.add_edges_from(adj_list[i])
+        if(label_edge):
+            G = nx.Graph()
+            G.add_weighted_edges_from(adj_list[i])
+            DG=nx.DiGraph()
+            DG.add_weighted_edges_from(adj_list[i])
+        else:
+            G = nx.from_edgelist(adj_list[i])
+            DG=nx.DiGraph()
+            DG.add_edges_from(adj_list[i])
         # add features and labels
         G.graph["label"] = graph_labels[i]
         DG.graph["label"] = graph_labels[i]
@@ -307,26 +317,26 @@ def read_graphfile(datadir, dataname, max_nodes=None, edge_labels=False):
                 DG.nodes[u]["feat"] = node_attrs[u]
         if len(node_attrs) > 0:
             G.graph["feat_dim"] = node_attrs[0].shape[0]
-
         # relabeling
-        # mapping = {}
-        # it = 0
-        # if float(nx.__version__) < 2.0:
-        #     for n in G.nodes():
-        #         mapping[n] = it
-        #         it += 1
-        # else:
-        #     for n in G.nodes:
-        #         mapping[n] = it
-        #         it += 1
-        # # indexed from 0
-        # graphs.append(nx.relabel_nodes(G, mapping))
+        mapping = {}
+        it = 0
+        if float(nx.__version__) < 2.0:
+            for n in G.nodes():
+                mapping[n] = it
+                it += 1
+        else:
+            for n in G.nodes:
+                mapping[n] = it
+                it += 1
+        # indexed from 0
+        graphs.append(nx.relabel_nodes(G, mapping))
         # dgraphs.append(nx.relabel_nodes(DG, mapping))
         graphs.append(G)
         dgraphs.append(DG)
     return graphs,dgraphs,adj_list
 
 def EmbedClusters(G,cluster_labels,width=1000,height=800,std=10,margin=20):
+    nodes = np.array(G.nodes)
     num_cluster = len(np.unique(cluster_labels))
     random.seed(0)
 
@@ -337,13 +347,16 @@ def EmbedClusters(G,cluster_labels,width=1000,height=800,std=10,margin=20):
     
     # loc_x = np.random.randint(margin,width-margin,num_cluster)
     # loc_y = np.random.randint(margin,height-margin,num_cluster)
-    embedding = np.zeros((len(cluster_labels),2))
+    embedding = {}
     for idx,c in enumerate(cluster_labels):
-       embedding[idx,0] = random.gauss(c_center[c,0],std)
-       embedding[idx,1] = random.gauss(c_center[c,1],std)
+        n = nodes[idx]
+        embedding[n]= {}
+        embedding[n]['x'] = random.gauss(c_center[c,0],std)
+        embedding[n]['y'] = random.gauss(c_center[c,1],std)
     return embedding,c_center
 
 def EmbedClusters_uniform(G,cluster_labels,width=1000,height=800,std=10,margin=20):
+    nodes = np.array(G.nodes)
     num_cluster = len(np.unique(cluster_labels))
 
     x_spacing = width/int(np.sqrt(num_cluster))
@@ -356,11 +369,13 @@ def EmbedClusters_uniform(G,cluster_labels,width=1000,height=800,std=10,margin=2
         c_center[n,0]=x
         c_center[n,1]=y
 
-    pos = np.zeros((len(cluster_labels),2))
-
+    # pos = np.zeros((len(cluster_labels),2))
+    pos= {}
     for idx,c in enumerate(cluster_labels):
-       pos[idx,0] = random.gauss(c_center[c,0],std)
-       pos[idx,1] = random.gauss(c_center[c,1],std)
+        n = nodes[idx]
+        pos[n]={}
+        pos[n]['x'] = random.gauss(c_center[c,0],std)
+        pos[n]['y'] = random.gauss(c_center[c,1],std)
     return pos,c_center
 def DrawGraphToSVGImage(graph,filename,position=None,node_names=None,labels=None,node_size=5,edge_width=0.5,display_edges=True,width=1000,height=800):
     #adjacency – Adjacency matrix of the graph.
@@ -386,10 +401,25 @@ def compress_graph(G):
     
     return G
 
+def assignColorbyCluster(nodes,cluster_labels):
+    num_labels = len(np.unique(cluster_labels))
+    color_step = 255**3//num_labels
+    colors = [i*color_step for i in range(num_labels)]
+    print(colors)
+    node_color = {}
+    for index,label in enumerate(cluster_labels):
+        n = nodes[index]
+        node_color[n] = {}
+        node_color[n]['r'] = colors[label]//(255**2)
+        node_color[n]['g'] = (colors[label] - node_color[n]['r']*(255**2))//255
+        node_color[n]['b'] = colors[label]%(255)
+        node_color[n]['a'] = 1
+    return node_color
 def NXtoGEXF(G,filename,pos,node_size,node_color):
     if pos is None:
         pos = nx.kamada_kawai_layout(G)
-    for node in pos:
+    
+    for node in np.array(G.nodes):
         G.nodes[node]['viz'] = {}
         G.nodes[node]['viz']['color']={}
         G.nodes[node]['viz']['color']['r'] = node_color[node]['r']
@@ -397,8 +427,8 @@ def NXtoGEXF(G,filename,pos,node_size,node_color):
         G.nodes[node]['viz']['color']['b'] = node_color[node]['b']
         G.nodes[node]['viz']['color']['a'] = node_color[node]['a']
         G.nodes[node]['viz']['position']={}
-        G.nodes[node]['viz']['position']['x'] = pos[node][0]
-        G.nodes[node]['viz']['position']['y'] = pos[node][1]
+        G.nodes[node]['viz']['position']['x'] = pos[node]['x']
+        G.nodes[node]['viz']['position']['y'] = pos[node]['y']
         G.nodes[node]['viz']['position']['z'] = 0.0
 
         G.nodes[node]['viz']['size']= node_size
