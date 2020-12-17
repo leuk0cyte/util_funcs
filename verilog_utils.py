@@ -417,7 +417,7 @@ class verilog_reader():
 
         return module_lib,cell_list
     
-    def FPGAtoGraph(self,filename,module_filename,ports_to_exclude=[],wire_to_exclude=[],hierarchy_identifier='|'):
+    def FPGAtoGraph(self,filename,module_filename,vo_file,ports_to_exclude=[],wire_to_exclude=[],hierarchy_identifier='|'):
         module_lib,cell_list = self.FPGAVerilogParser(filename,module_filename)
         cell_dict = {}
         wire_dict = {}
@@ -464,6 +464,25 @@ class verilog_reader():
                     # print(wire_dict[wire_name])
             idx += 1
 
+        ## fix ram connection issue
+        ref = open(vo_file, "r")
+        mapping = {}
+        for l in ref.readlines():
+            if('assign' in l ):
+                texts = l.split('=')
+                wire_left = (texts[0].split('assign')[-1]).split('\\')[-1].split(' ')[0]
+                wire_right = texts[1].split('\\')[-1].split(' ')[0]
+                if(wire_right in mapping):
+                    mapping[wire_right].append(wire_left)
+                else:
+                    mapping[wire_right] = []
+                    mapping[wire_right].append(wire_left)
+        for wire in wire_dict:
+            if wire in mapping:
+                for m_wire in mapping[wire]:
+                    wire_dict[m_wire]['source_port'] = wire_dict[wire]['source_port']
+                    wire_dict[m_wire]['source_cell'] = wire_dict[wire]['source_cell']
+
         #create node_list and edge_list from dictionaries
 
         node_list = []
@@ -472,6 +491,7 @@ class verilog_reader():
         label_dict = {}
         edge_label_list = []
         signal_collection = {}
+        input_dict={}
         for wire in wire_dict:
             ## removing unwanted connections
             if(wire in wire_to_exclude):#['n92','GND','VCC','vcc','n216','n1','n4577','n4576','clk','gnd','u_sys_pll|altpll_component|_clk0','u_sys_pll|altpll_component|_clk1','u_sys_pll|altpll_component|_clk2']):
@@ -495,7 +515,9 @@ class verilog_reader():
                     
             else:
                 print("Found",wire,"has no source. It could be a input signal!\n")
+                
                 cell_name = wire
+                input_dict[cell_name]=1
                 cell_dict[cell_name] = {}
                 cell_dict[cell_name]['index'] =idx
                 cell_dict[cell_name]['type'] = 'Ext_Inputs'
@@ -531,12 +553,15 @@ class verilog_reader():
             json.dump(wire_dict, fp)
         with open(self.top_module_name+'/'+'signal_collection.json', 'w') as fp:
             json.dump(signal_collection, fp)
+        with open(self.top_module_name+'/'+'input_dict.json', 'w') as fp:
+            json.dump(input_dict, fp)
         np.savetxt(self.top_module_name+'/'+self.top_module_name+'_node_labels.txt',label_list,"%s",delimiter=",")
         np.savetxt(self.top_module_name+'/'+self.top_module_name+'_nodelist.txt',node_list,"%s",delimiter=",")
         np.savetxt(self.top_module_name+'/'+self.top_module_name+'_A.txt',edge_list,"%s",delimiter=",")
         np.savetxt(self.top_module_name+'/'+self.top_module_name+'_edge_labels.txt',edge_label_list,"%s",delimiter=",")
 
         np.savetxt(self.top_module_name+'/'+self.top_module_name+'_graph_indicator.txt',np.zeros(len(node_list),dtype=np.intc),"%s",delimiter=",")
+        np.savetxt(self.top_module_name+'/'+self.top_module_name+'_graph_labels.txt',np.zeros(1,dtype=np.intc),"%s",delimiter=",")
         return module_lib,node_list
 
     def gnlVerilogParser(self,filename,modulename,savepath='./'):
