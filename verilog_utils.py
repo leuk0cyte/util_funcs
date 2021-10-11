@@ -453,7 +453,7 @@ class verilog_reader():
                     
                     if(not port_name in cell_dict[cell_name]['connections']):
                         cell_dict[cell_name]['connections'][port_name] = []
-                    if(port_name in ports_to_exclude): #removing anny clk and gnd connection
+                    if(port_name in ports_to_exclude): #removing any clk and gnd connection
                         continue
                     cell_dict[cell_name]['connections'][port_name].append(wire_name)
                     if(not wire_name in wire_dict):
@@ -470,18 +470,31 @@ class verilog_reader():
         for l in ref.readlines():
             if('assign' in l ):
                 texts = l.split('=')
-                wire_left = (texts[0].split('assign')[-1]).split('\\')[-1].split(' ')[0]
-                wire_right = texts[1].split('\\')[-1].split(' ')[0]
+                wires = (texts[0].split('assign')[-1]).split('\\')[-1].split(' ')[:-1]
+                wire_left = wires[0]
+                for entry in wires[1:]:
+                    wire_left += entry
+                wires = texts[1].split('\\')[-1].split(' ')[:-1]
+                wire_right = wires[0]
+                # for entry in wires[1:]:
+                #     wire_right += entry
+                    
                 if(wire_right in mapping):
                     mapping[wire_right].append(wire_left)
                 else:
                     mapping[wire_right] = []
                     mapping[wire_right].append(wire_left)
+        print("{} assigns found".format(len(mapping)))
         for wire in wire_dict:
             if wire in mapping:
-                for m_wire in mapping[wire]:
-                    wire_dict[m_wire]['source_port'] = wire_dict[wire]['source_port']
-                    wire_dict[m_wire]['source_cell'] = wire_dict[wire]['source_cell']
+                m_wires = mapping[wire]
+                for m_wire in m_wires:
+                    # if('q_b' in m_wire):
+                    #     print("mapping {} to  {}".format(m_wire, wire))
+                    if m_wire in wire_dict:
+                        wire_dict[m_wire]['source_port'] = wire_dict[wire]['source_port']
+                        wire_dict[m_wire]['source_cell'] = wire_dict[wire]['source_cell']
+                
 
         #create node_list and edge_list from dictionaries
 
@@ -539,12 +552,8 @@ class verilog_reader():
                 if (not l in label_dict):
                     label_dict[l] = label_index
                     label_index += 1
-                    while('0' in str(label_index)):
-                        label_index += 1
-                label_str = label_str + '0' + str(label_dict[l])
-            if(int(label_str) == 0):
-                print(label_str)
-            label_list.append(int(label_str))
+                label_str = label_str + ';' + str(label_dict[l])
+            label_list.append(label_str)
         with open(self.top_module_name+'/'+'cell_dict.json', 'w') as fp:
             json.dump(cell_dict, fp)
         with open(self.top_module_name+'/'+'label_dict.json', 'w') as fp:
@@ -555,6 +564,8 @@ class verilog_reader():
             json.dump(signal_collection, fp)
         with open(self.top_module_name+'/'+'input_dict.json', 'w') as fp:
             json.dump(input_dict, fp)
+        with open(self.top_module_name+'/'+'wire_mapping.json', 'w') as fp:
+            json.dump(mapping, fp)
         np.savetxt(self.top_module_name+'/'+self.top_module_name+'_node_labels.txt',label_list,"%s",delimiter=",")
         np.savetxt(self.top_module_name+'/'+self.top_module_name+'_nodelist.txt',node_list,"%s",delimiter=",")
         np.savetxt(self.top_module_name+'/'+self.top_module_name+'_A.txt',edge_list,"%s",delimiter=",")

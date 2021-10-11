@@ -1,8 +1,12 @@
 # util_funcs
+## Usage:
+run perl conversion script: ```perl('FPGA_Netlist_Txt_Conversion.pl', 'Data\try_vo.vo', 'Data\try_vo.txt');``` <\br>
+run ReadFPGA.ipyn
+
 
 # TODO
-verilog_utils:\
-return a dictionary with all gate mapped.\
+verilog_utils:<\br>
+return a dictionary with all gate mapped.<\br>
 - Toplevel:
   - gates:
     - gate1:(gate_name)
