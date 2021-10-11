@@ -1,0 +1,8 @@
+cycloneive_io_obuf;9;3;datain,ddiodatain,oe,outclk,outclkena,inclk,inclkena,areset,sreset;combout,regout,ddioregout;operation_mode,ddio_mode,output_register_mode,output_async_reset,output_power_up,output_sync_reset,oe_register_mode,oe_async_reset,oe_power_up,oe_sync_reset,input_register_mode,input_async_reset,input_power_up,input_sync_reset;
+stratix_lcell;13;3;clk,aclr,aload,sclr,sload,ena,inverta,dataa,datab,datac,datad,cin,regcascin;combout,regout,cout;lut_mask,operation_mode,output_mode,register_cascade_mode,sum_lutc_input,synch_mode;
+cycloneive_lcell_comb;6;2;inverta,dataa,datab,datac,datad,cin;combout,cout;lut_mask,operation_mode,sum_lutc_input;
+stratix_lcell_reg;9;1;clk,aclr,aload,sclr,sload,ena,regcascin,d_port,dload_port;regout;synch_mode,register_cascade_mode;
+stratix_mac_mult;7;3;dataa,datab,signa,signb,clk,aclr,ena;dataout,scanouta,scanoutb;dataa_width,datab_width;
+stratix_mac_out;12;2;dataa,datab,datac,datad,zeroacc,addnsub0,addnsub1,signa,signb,clk,aclr,ena;dataout,accoverflow;operation_mode,dataa_width,datab_width,datac_width,datad_width,data_out_programmable_invert,overflow_programmable_invert;
+stratix_ram_block;14;2;portadatain,portaaddr,portawe,portbdatain,portbaddr,portbrewe,clk0,clk1,ena0,ena1,clr0,clr1,portabyteenamasks,portbbyteenamasks;portadataout,portbdataout;operation_mode,ram_block_type,port_a_logical_ram_depth,port_a_logical_ram_width,port_b_logical_ram_depth,port_b_logical_ram_width;
+stratix_pll;5;2;clk,areset,inclk,clkena,locked;extclkena,extclk;operation_mode,bandwidth,bandwidth_type;
