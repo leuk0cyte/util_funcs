@@ -417,7 +417,7 @@ class verilog_reader():
 
         return module_lib,cell_list
     
-    def FPGAtoGraph(self,filename,module_filename,vo_file,ports_to_exclude=[],wire_to_exclude=[],hierarchy_identifier='|'):
+    def FPGAtoGraph(self,filename,module_filename,vo_file, savepath='./', ports_to_exclude=[],wire_to_exclude=[],hierarchy_identifier='|'):
         module_lib,cell_list = self.FPGAVerilogParser(filename,module_filename)
         cell_dict = {}
         wire_dict = {}
@@ -566,13 +566,13 @@ class verilog_reader():
             json.dump(input_dict, fp)
         with open(self.top_module_name+'/'+'wire_mapping.json', 'w') as fp:
             json.dump(mapping, fp)
-        np.savetxt(self.top_module_name+'/'+self.top_module_name+'_node_labels.txt',label_list,"%s",delimiter=",")
-        np.savetxt(self.top_module_name+'/'+self.top_module_name+'_nodelist.txt',node_list,"%s",delimiter=",")
-        np.savetxt(self.top_module_name+'/'+self.top_module_name+'_A.txt',edge_list,"%s",delimiter=",")
-        np.savetxt(self.top_module_name+'/'+self.top_module_name+'_edge_labels.txt',edge_label_list,"%s",delimiter=",")
+        np.savetxt(savepath + self.top_module_name+'/'+self.top_module_name+'_node_labels.txt',label_list,"%s",delimiter=",")
+        np.savetxt(savepath + self.top_module_name+'/'+self.top_module_name+'_nodelist.txt',node_list,"%s",delimiter=",")
+        np.savetxt(savepath + self.top_module_name+'/'+self.top_module_name+'_A.txt',edge_list,"%s",delimiter=",")
+        np.savetxt(savepath + self.top_module_name+'/'+self.top_module_name+'_edge_labels.txt',edge_label_list,"%s",delimiter=",")
 
-        np.savetxt(self.top_module_name+'/'+self.top_module_name+'_graph_indicator.txt',np.zeros(len(node_list),dtype=np.intc),"%s",delimiter=",")
-        np.savetxt(self.top_module_name+'/'+self.top_module_name+'_graph_labels.txt',np.zeros(1,dtype=np.intc),"%s",delimiter=",")
+        np.savetxt(savepath + self.top_module_name+'/'+self.top_module_name+'_graph_indicator.txt',np.zeros(len(node_list),dtype=np.intc),"%s",delimiter=",")
+        np.savetxt(savepath + self.top_module_name+'/'+self.top_module_name+'_graph_labels.txt',np.zeros(1,dtype=np.intc),"%s",delimiter=",")
         return module_lib,node_list
 
     def gnlVerilogParser(self,filename,modulename,savepath='./'):

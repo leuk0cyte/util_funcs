@@ -2,7 +2,7 @@
 ## Usage:
 1. run perl conversion script: ```perl 'FPGA_Netlist_Txt_Conversion.pl' 'Data\try_vo.vo' 'Data\try_vo.txt'``` <br>
 1. create  ```module_name```folder
-1. run ReadFPGA.ipyn<br>
+1. run: ```python read_fpga.py --modulename [modulename] --netlist_filename path-to-netlist```<br>
 1. change ```module_node_label.txt``` to ```module_node_label_bk.txt``` (to avoid script read node labels).<br>
 
 
