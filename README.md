@@ -4,8 +4,7 @@
 1. create  ```module_name```folder
 1. run: ```python read_fpga.py --modulename [modulename] --netlist_filename path-to-netlist --o path-to-output-folder```<br>
 1. change ```module_node_label.txt``` to ```module_node_label_bk.txt``` (to avoid script read node labels).<br>
-
-
+1. 
 
 # TODO
 verilog_utils:<br>
