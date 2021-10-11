@@ -3,7 +3,8 @@ from util_funcs import graph_utils
 from util_funcs import verilog_utils
 import argparse
 
-"""usage: python read_fpga.py --modulename [modulename] --netlist_filename path-to-netlist --o path-to-output-folder"""
+"""usage: 
+    python read_fpga.py --modulename [modulename] --netlist_filename path-to-netlist --o path-to-output-folder"""
 
 def arg_parse():
     parser = argparse.ArgumentParser(description="arguments parser")
