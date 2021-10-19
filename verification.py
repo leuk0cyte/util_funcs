@@ -1,7 +1,6 @@
 # this program is to verify the number of modules whether match the processed file
 
 import os 
-import re
 # original exported netlist
 file_name = './fft_64/fft_64.vo'
 file_object = open(file_name,'r+')
@@ -10,10 +9,6 @@ file_name2 = './fft_64/fft_64_vo.txt'
 module_count = 0
 module_list = []
 
-# for line in file_object:
-#     if re.match('\/\/ Location',line) is not None:
-#         module_count += 1
-#         module_list.append()
 
 for line in file_object:
     if ("// Location:") in line:
