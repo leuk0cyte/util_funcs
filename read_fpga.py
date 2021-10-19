@@ -1,6 +1,6 @@
 import sys
-from util_funcs import graph_utils
-from util_funcs import verilog_utils
+import graph_utils
+import verilog_utils
 import argparse
 
 """usage: 
@@ -17,9 +17,13 @@ def arg_parse():
                         dest="netlist_filename",
                         default='fft',
                         help="run spectral clustering")
+    parser.add_argument("--vo_file",
+                        dest="vo_file",
+                        default='fft',
+                        help="vo_file")
     parser.add_argument("--lib_filename",
                         dest='lib_filename',
-                        default='cell_library.txt',
+                        default='--',
                         help="run_VGAE")
     parser.add_argument("--port_to_exclude",
                         dest="port_to_exclude",
@@ -42,13 +46,13 @@ def arg_parse():
 # wire_to_exclude = ['vcc','VCC','GND','gnd','inclk','clk1','clk0','clk2','clk3','vcc','n216','n4577','n4576']
 
 if __name__ == '__main__':
-    args = argparse()
+    args = arg_parse()
     reader = verilog_utils.verilog_reader(args.modulename,
                                           args.netlist_filename)
     module_lib, cell_list = reader.FPGAtoGraph(args.netlist_filename,
                                                args.lib_filename,
                                                args.vo_file,
-                                               args.port_to_exclude,
-                                               args.wire_to_exclude,
                                                savepath=args.output,
+                                               ports_to_exclude=args.port_to_exclude,
+                                               wire_to_exclude=args.wire_to_exclude,
                                                hierarchy_identifier='|')

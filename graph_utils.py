@@ -378,10 +378,6 @@ def EmbedClusters_uniform(G,cluster_labels,width=1000,height=800,std=10,margin=2
         pos[n]['y'] = random.gauss(c_center[c,1],std)
     return pos,c_center
 def DrawGraphToSVGImage(graph,filename,position=None,node_names=None,labels=None,node_size=5,edge_width=0.5,display_edges=True,width=1000,height=800):
-    #adjacency – Adjacency matrix of the graph.
-    #position – Positions of the nodes.
-    #names – Names of the nodes.
-    #labels – Labels of the nodes (negative values mean no label).
     position += abs(np.min(position))+1
     adjacency = nx.adjacency_matrix(graph)
     image = svg_graph(adjacency,position=position,names=node_names,labels=labels,node_size=node_size,
