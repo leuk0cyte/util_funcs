@@ -58,7 +58,8 @@ foreach (@lines)
 {	
 	# print "Each line: $_\n";
 	#if($_ !~ /^\s*module|^\s*(in|out)put|^\s*inout|^\s*wire|^\s*assign|^\s*endmodule|^\s*defparam|^$/)
-	if($_ =~ /^\s*stratixiii_\S+/)
+	#if($_ =~ /^\s*stratixiii_\S+/)
+	if(($_ =~ /^\s*dffeas/)|($_ =~ /^\s*stratixiii_\S+/))
     {	
 		#print "cell is $_\n";
 		$lcell_mark =1;
