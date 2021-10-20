@@ -2,10 +2,11 @@
 
 import os 
 # original exported netlist
-file_name = './fft_64/fft_64.vo'
+object_name = 'fir'
+file_name = f'./{object_name}/{object_name}.vo'
 file_object = open(file_name,'r+')
 # processed netlist
-file_name2 = './fft_64/fft_64_vo.txt'
+file_name2 = f'./{object_name}/{object_name}_vo.txt'
 module_count = 0
 module_list = []
 
