@@ -469,6 +469,7 @@ class verilog_reader():
         mapping = {}
         for l in ref.readlines():
             if('assign' in l ):
+                print(l)
                 texts = l.split('=')
                 wires = (texts[0].split('assign')[-1]).split('\\')[-1].split(' ')[:-1]
                 wire_left = wires[0]
@@ -484,6 +485,7 @@ class verilog_reader():
                 else:
                     mapping[wire_right] = []
                     mapping[wire_right].append(wire_left)
+        
         print("{} assigns found".format(len(mapping)))
         for wire in wire_dict:
             if wire in mapping:
