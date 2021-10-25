@@ -2,7 +2,7 @@
 
 import os 
 # original exported netlist
-object_name = 'fir'
+object_name = 'fft_4096'
 file_name = f'./{object_name}/{object_name}.vo'
 file_object = open(file_name,'r+')
 # processed netlist
