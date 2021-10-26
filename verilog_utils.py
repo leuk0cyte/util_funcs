@@ -556,17 +556,17 @@ class verilog_reader():
                     label_index += 1
                 label_str = label_str + ';' + str(label_dict[l])
             label_list.append(label_str)
-        with open(self.top_module_name+'/'+'cell_dict.json', 'w') as fp:
+        with open(self.top_module_name+'/'+self.top_module_name+'_cell_dict.json', 'w') as fp:
             json.dump(cell_dict, fp)
-        with open(self.top_module_name+'/'+'label_dict.json', 'w') as fp:
+        with open(self.top_module_name+'/'+self.top_module_name+'_label_dict.json', 'w') as fp:
             json.dump(label_dict, fp)
-        with open(self.top_module_name+'/'+'wire_dict.json', 'w') as fp:
+        with open(self.top_module_name+'/'+self.top_module_name+'_wire_dict.json', 'w') as fp:
             json.dump(wire_dict, fp)
-        with open(self.top_module_name+'/'+'signal_collection.json', 'w') as fp:
+        with open(self.top_module_name+'/'+self.top_module_name+'_signal_collection.json', 'w') as fp:
             json.dump(signal_collection, fp)
-        with open(self.top_module_name+'/'+'input_dict.json', 'w') as fp:
+        with open(self.top_module_name+'/'+self.top_module_name+'_input_dict.json', 'w') as fp:
             json.dump(input_dict, fp)
-        with open(self.top_module_name+'/'+'wire_mapping.json', 'w') as fp:
+        with open(self.top_module_name+'/'+self.top_module_name+'_wire_mapping.json', 'w') as fp:
             json.dump(mapping, fp)
         np.savetxt(savepath + self.top_module_name+'/'+self.top_module_name+'_node_labels.txt',label_list,"%s",delimiter=",")
         np.savetxt(savepath + self.top_module_name+'/'+self.top_module_name+'_nodelist.txt',node_list,"%s",delimiter=",")
