@@ -42,8 +42,8 @@ def arg_parse():
 
 
 # module_lib,cell_list = reader.FPGAtoGraph(netlist_filename,lib_filename)
-# port_to_exclude = ['clk','clk0','clk1','inclk']
-# wire_to_exclude = ['vcc','VCC','GND','gnd','inclk','clk1','clk0','clk2','clk3','vcc','n216','n4577','n4576']
+# port_to_exclude = ['vcc','gnd','clk','reset_n','devclrn','devpor']
+# wire_to_exclude = ['vcc','gnd','clk','reset_n','devclrn','devpor','clk~inputclkctrl_outclk','reset_n~inputclkctrl_outclk']
 
 if __name__ == '__main__':
     args = arg_parse()

@@ -1,8 +1,12 @@
 import os 
 
-module_name = 'fft_128' 
+module_name = 'fir_19tap' 
 fpga_family = 'stratixiii'
 cell_lib_filename = f'./cell_libs/{fpga_family}_cell_library.txt'      
+
+port_to_exclude = "['vcc','gnd','devclrn','devpor','devoe','clk','reset_n']"
+wire_to_exclude = "['vcc','gnd','devclrn','devpor','devoe','clk','reset_n','clk~input_o','clk~inputclkctrl_outclk','reset_n~input_o','reset_n~inputclkctrl_outclk','!\\asj_fft_sglstream_fft_131_inst|global_clock_enable~0_combout']"
+# devclrn,devpor;     // device wide clear/reset
 
 # this function is to verify the number of modules whether match the processed file
 def verification(object_name):
@@ -25,7 +29,7 @@ def verification(object_name):
 
     # read the original netlist file, got the module set and No. of modules in total
     print('Read orignal netlist finished!')
-    print(f'There are {len(module_list)} modules in total, {len(module_set)} different modules, the following is the list:\n{module_set}\n\n')
+    print(f'There are {len(module_list)} modules in total, {len(module_set)} different kinds of module, the following is the list:\n{module_set}\n\n')
 
     # use iterial method count the processed file
     def iter_count(file_name):
@@ -57,7 +61,7 @@ if __name__ == '__main__':
     txt_file_obj.truncate()
 
     # run the read_fpga script
-    command =  f'python read_fpga.py --modulename {module_name} --netlist_filename ./{module_name}/{module_name}_vo.txt  --vo_file ./{module_name}/{module_name}.vo --lib_filename {cell_lib_filename} --o ./'
+    command =  f'python read_fpga.py --modulename {module_name} --netlist_filename ./{module_name}/{module_name}_vo.txt  --vo_file ./{module_name}/{module_name}.vo --lib_filename {cell_lib_filename} --port_to_exclude {port_to_exclude} --wire_to_exclude {wire_to_exclude} --o ./'
     os.system(command)
 
     os.rename(f'./{module_name}/{module_name}_node_labels.txt',f'./{module_name}/{module_name}_node_labels_bk.txt')
