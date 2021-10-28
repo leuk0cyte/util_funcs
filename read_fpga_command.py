@@ -1,11 +1,11 @@
 import os 
 
-module_name = 'fir_19tap' 
+module_name = 'fft_4096' 
 fpga_family = 'stratixiii'
 cell_lib_filename = f'./cell_libs/{fpga_family}_cell_library.txt'      
 
 port_to_exclude = "['vcc','gnd','devclrn','devpor','devoe','clk','reset_n']"
-wire_to_exclude = "['vcc','gnd','devclrn','devpor','devoe','clk','reset_n','clk~input_o','clk~inputclkctrl_outclk','reset_n~input_o','reset_n~inputclkctrl_outclk','!\\asj_fft_sglstream_fft_131_inst|global_clock_enable~0_combout']"
+wire_to_exclude = "['vcc','gnd','devclrn','devpor','devoe','clk','reset_n','clk~input_o','clk~inputclkctrl_outclk','reset_n~input_o','reset_n~inputclkctrl_outclk','!\\asj_fft_sglstream_fft_131_inst|global_clock_enable~0_combout','!\\asj_fft_dualstream_fft_131_inst|global_clock_enable~0_combout']"
 # devclrn,devpor;     // device wide clear/reset
 
 # this function is to verify the number of modules whether match the processed file
@@ -52,7 +52,7 @@ if __name__ == '__main__':
     # run the perl script
     os.system(command)
 
-    # replace the '.\' to ',' in the perl's output file
+    # replace the ',\' to ',' in the perl's output file
     txt_file_obj = open(f'./{module_name}/{module_name}_vo.txt','+r')
     txt_file_cont = txt_file_obj.read()
     txt_file_cont = txt_file_cont.replace(',\\',',')
