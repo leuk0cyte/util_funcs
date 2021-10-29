@@ -5,7 +5,7 @@ fpga_family = 'stratixiii'
 cell_lib_filename = f'./cell_libs/{fpga_family}_cell_library.txt'      
 
 port_to_exclude = "['vcc','gnd','devclrn','devpor','devoe','clk','reset_n']"
-wire_to_exclude = "['vcc','gnd','devclrn','devpor','devoe','clk','reset_n','clk~input_o','clk~inputclkctrl_outclk','reset_n~input_o','reset_n~inputclkctrl_outclk','!\\asj_fft_sglstream_fft_131_inst|global_clock_enable~0_combout','!\\asj_fft_dualstream_fft_131_inst|global_clock_enable~0_combout']"
+wire_to_exclude = "['vcc','gnd','devclrn','devpor','devoe','clk','reset_n','clk~input_o','clk~inputclkctrl_outclk','reset_n~input_o','reset_n~inputclkctrl_outclk']"
 # devclrn,devpor;     // device wide clear/reset
 
 # this function is to verify the number of modules whether match the processed file
@@ -56,6 +56,7 @@ if __name__ == '__main__':
     txt_file_obj = open(f'./{module_name}/{module_name}_vo.txt','+r')
     txt_file_cont = txt_file_obj.read()
     txt_file_cont = txt_file_cont.replace(',\\',',')
+    txt_file_cont = txt_file_cont.replace(',!\\',',')
     txt_file_obj.seek(0,0)
     txt_file_obj.write(txt_file_cont)
     txt_file_obj.truncate()
