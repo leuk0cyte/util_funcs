@@ -1,11 +1,11 @@
 import os 
 
-module_name = 'fft_4096' 
+module_name = 'fir_19tap' 
 fpga_family = 'stratixiii'
 cell_lib_filename = f'./cell_libs/{fpga_family}_cell_library.txt'      
 
 port_to_exclude = "['vcc','gnd','devclrn','devpor','devoe','clk','reset_n']"
-wire_to_exclude = "['vcc','gnd','devclrn','devpor','devoe','clk','reset_n','clk~input_o','clk~inputclkctrl_outclk','reset_n~input_o','reset_n~inputclkctrl_outclk']"
+wire_to_exclude = "['vcc','gnd','devclrn','devpor','devoe','clk','reset_n','clk~input_o','clk~inputclkctrl_outclk','reset_n~input_o','reset_n~inputclkctrl_outclk','\clk_clk~inputclkctrl_outclk']"
 # devclrn,devpor;     // device wide clear/reset
 
 # this function is to verify the number of modules whether match the processed file
