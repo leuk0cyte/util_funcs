@@ -1,6 +1,7 @@
 import os 
+import graph_utils
 
-module_name = 'fir_19tap' 
+module_name = 'fft_64' 
 fpga_family = 'stratixiii'
 cell_lib_filename = f'./cell_libs/{fpga_family}_cell_library.txt'      
 
