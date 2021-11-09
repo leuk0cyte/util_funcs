@@ -1,7 +1,7 @@
 import os 
 import graph_utils
 
-module_name = 'fft_64' 
+module_name = 'fir_18bCo_18bIn' 
 fpga_family = 'stratixiii'
 cell_lib_filename = f'./cell_libs/{fpga_family}_cell_library.txt'      
 
