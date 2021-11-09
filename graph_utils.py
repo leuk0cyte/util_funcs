@@ -181,7 +181,7 @@ def read_graphfile(datadir, dataname, max_nodes=None, label_edge=False):
     Returns:
         List of networkx objects with graph and node labels
     """
-    logfile = open(datadir+'readgraph_log.txt','w+') ##open a txtfile to save log message
+    # logfile = open(datadir+'readgraph_log.txt','w+') ##open a txtfile to save log message
     prefix = os.path.join(datadir, dataname)
     filename_graph_indic = prefix + "_graph_indicator.txt"
     # index of graphs that a given node belongs to
@@ -266,7 +266,7 @@ def read_graphfile(datadir, dataname, max_nodes=None, label_edge=False):
         for line in f:
             line = line.strip("\n").split(",")
             e0, e1 = (int(line[0].strip(" ")), int(line[1].strip(" ")))
-            logfile.write("Reading edge: ({},{})\n".format(e0,e1))
+            # logfile.write("Reading edge: ({},{})\n".format(e0,e1))
             if(label_edge):
                 edge_label = edge_labels[num_edges]
                 adj_list[graph_indic[e0]].append((e0, e1,edge_label))

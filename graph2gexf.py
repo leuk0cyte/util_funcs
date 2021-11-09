@@ -12,4 +12,4 @@ G = graphs[1]
 # node_color = [{}]
 # node_color.append()
 
-graph_utils.NXtoGEXF(G,f'./{module_name}/{module_name}.gexf',None,None,None)     
+graph_utils.NXtoGEXF(G,f'./{module_name}/{module_name}.gexf',None,None,None)
